@@ -1,35 +1,288 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Logos</title>
+<title>Logos Realization; Shivaumen</title>
 <style>body,html{margin:0;padding:0;overflow:hidden;font-family:Arial,sans-serif;background:#000;}#fullscreenButton{display:none;position:fixed;top:10px;right:10px;padding:10px 20px;background-color:rgba(255,255,255,0.7);border:none;border-radius:5px;cursor:pointer;z-index:1000;}</style>
 </head>
 <body>
 <button id="fullscreenButton" onclick="toggleFullscreen()">Fullscreen</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-let scene,camera,renderer,light,objects=[],gyroData={acc:{x:0,y:0,z:0}},buildingStep=0;const myths=["🔥","🌱","💧","💡","🌬️"],roles=['战士','牧师','统治者','天使','恶魔','僧侣'];
-const init=()=>{scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(window.innerWidth,window.innerHeight);document.body.appendChild(renderer.domElement);light=new THREE.PointLight(0xffffff,1,100);light.position.set(50,50,50);scene.add(light);camera.position.z=5;loadState();createInitialObjects();animate();document.body.addEventListener('click',showFullscreenButton);window.addEventListener('beforeunload',saveState);}
-const animate=()=>{requestAnimationFrame(animate);objects.forEach(obj=>{obj.rotation.x+=0.01;obj.rotation.y+=0.01;obj.position.x+=(Math.random()-0.5)*0.01+gyroData.acc.x*0.001;obj.position.y+=(Math.random()-0.5)*0.01+gyroData.acc.y*0.001;obj.position.z+=(Math.random()-0.5)*0.01+gyroData.acc.z*0.001;interactWithOthers(obj);});buildingStep++;if(buildingStep%200===0)createBuilding();renderer.render(scene,camera);}
-const interactWithOthers=entity=>{const target=objects[Math.floor(Math.random()*objects.length)];if(target!==entity){entity.lookAt(target.position);entity.children.forEach(child=>{if(child.isArm){child.lookAt(target.position);}});}}
-const createInitialObjects=()=>{for(let i=0;i<10;i++)createPerson();createGuide();}
-const createPerson=()=>{const person=new THREE.Group();const bodyGeometry=new THREE.SphereGeometry(0.2,32,32);const bodyMaterial=new THREE.MeshBasicMaterial({color:Math.random()*0xffffff});const body=new THREE.Mesh(bodyGeometry,bodyMaterial);person.add(body);const eyeGeometry=new THREE.SphereGeometry(0.05,32,32);const eyeMaterial=new THREE.MeshBasicMaterial({color:0xffffff});const leftEye=new THREE.Mesh(eyeGeometry,eyeMaterial);leftEye.position.set(-0.1,0.1,0.2);person.add(leftEye);const rightEye=new THREE.Mesh(eyeGeometry,eyeMaterial);rightEye.position.set(0.1,0.1,0.2);person.add(rightEye);const armGeometry=new THREE.CylinderGeometry(0.05,0.05,0.5,32);const armMaterial=new THREE.MeshBasicMaterial({color:bodyMaterial.color.getHex()});const leftArm=new THREE.Mesh(armGeometry,armMaterial);leftArm.position.set(-0.3,0,0);leftArm.rotation.z=Math.PI/4;leftArm.isArm=true;person.add(leftArm);const rightArm=new THREE.Mesh(armGeometry,armMaterial);rightArm.position.set(0.3,0,0);rightArm.rotation.z=-Math.PI/4;rightArm.isArm=true;person.add(rightArm);person.position.set(Math.random()*4-2,Math.random()*4-2,Math.random()*4-2);imbueKnowledge(person,bodyMaterial.color.getHex());scene.add(person);objects.push(person);}
-const createGuide=()=>{const guide=new THREE.Group();const bodyGeometry=new THREE.SphereGeometry(0.5,32,32);const bodyMaterial=new THREE.MeshBasicMaterial({color:0xffff00});const body=new THREE.Mesh(bodyGeometry,bodyMaterial);guide.add(body);const eyeGeometry=new THREE.SphereGeometry(0.1,32,32);const eyeMaterial=new THREE.MeshBasicMaterial({color:0xffffff});const leftEye=new THREE.Mesh(eyeGeometry,eyeMaterial);leftEye.position.set(-0.25,0.25,0.5);guide.add(leftEye);const rightEye=new THREE.Mesh(eyeGeometry,eyeMaterial);rightEye.position.set(0.25,0.25,0.5);guide.add(rightEye);const armGeometry=new THREE.CylinderGeometry(0.1,0.1,1,32);const armMaterial=new THREE.MeshBasicMaterial({color:bodyMaterial.color.getHex()});const leftArm=new THREE.Mesh(armGeometry,armMaterial);leftArm.position.set(-0.75,0,0);leftArm.rotation.z=Math.PI/4;leftArm.isArm=true;guide.add(leftArm);const rightArm=new THREE.Mesh(armGeometry,armMaterial);rightArm.position.set(0.75,0,0);rightArm.rotation.z=-Math.PI/4;rightArm.isArm=true;guide.add(rightArm);guide.position.set(0,0,0);imbueKnowledge(guide,bodyMaterial.color.getHex());scene.add(guide);objects.push(guide);}
-const createLine=(x1,y1,z1,x2,y2,z2,color)=>{const material=new THREE.LineBasicMaterial({color:color});const points=[new THREE.Vector3(x1,y1,z1),new THREE.Vector3(x2,y2,z2)];const geometry=new THREE.BufferGeometry().setFromPoints(points);const line=new THREE.Line(geometry,material);imbueKnowledge(line,color);scene.add(line);objects.push(line);}
-const createSpeedSquare=(x,y,z,size,color)=>{createLine(x,y,z,x+size,y,z,color);createLine(x,y,z,x,y+size,z,color);createLine(x,y,z,x+size,y+size,z,color);}
-const createCompass=(x,y,z,radius,color)=>{const geometry=new THREE.CircleGeometry(radius,32);const material=new THREE.MeshBasicMaterial({color:color,side:THREE.DoubleSide});const circle=new THREE.Mesh(geometry,material);imbueKnowledge(circle,color);circle.position.set(x,y,z);scene.add(circle);objects.push(circle);}
-const createSpirograph=(x,y,z,R,r,O,color)=>{const material=new THREE.LineBasicMaterial({color:color});const points=[];for(let t=0;t<Math.PI*2*r/gcd(R,r);t+=0.1){const xPos=(R-r)*Math.cos(t)+O*Math.cos((R-r)/r*t);const yPos=(R-r)*Math.sin(t)-O*Math.sin((R-r)/r*t);points.push(new THREE.Vector3(x+xPos,y+yPos,z));}const geometry=new THREE.BufferGeometry().setFromPoints(points);const spirograph=new THREE.Line(geometry,material);imbueKnowledge(spirograph,color);scene.add(spirograph);objects.push(spirograph);}
-const gcd=(a,b)=>{return b?gcd(b,a%b):a;}
-const createBlock=(x,y,z,color)=>{const geometry=new THREE.BoxGeometry(0.2,0.2,0.2);const material=new THREE.MeshBasicMaterial({color:color});const block=new THREE.Mesh(geometry,material);block.position.set(x,y,z);imbueKnowledge(block,color);scene.add(block);objects.push(block);}
-const createBuilding=()=>{const baseX=Math.random()*8-4;const baseY=Math.random()*8-4;const colors=[0xff0000,0x00ff00,0x0000ff,0xffff00,0xffffff];const color=colors[Math.floor(Math.random()*colors.length)];for(let i=0;i<5;i++){for(let j=0;j<5;j++){createBlock(baseX+i*0.2,baseY+j*0.2,0,color);}}for(let k=0;k<5;k++){createBlock(baseX+2*0.2,baseY+2*0.2,k*0.2,color);}createSpeedSquare(baseX,baseY,0,1,color);createCompass(baseX,baseY,0,1,color);createSpirograph(baseX,baseY,0,1,0.5,0.2,color);}
-const imbueKnowledge=(obj,color)=>{obj.creationMyth=myths[Math.floor(Math.random()*myths.length)];obj.role=roles[Math.floor(Math.random()*roles.length)];console.log(`Created a ${getColorName(color)} ${obj.role} with myth: ${obj.creationMyth}`);}
-const getColorName=color=>{switch(color){case 0xff0000:return'red';case 0x00ff00:return'green';case 0x0000ff:return'blue';case 0xffff00:return'黄';case 0xffffff:return'白';default:return'unknown';}}
-const getGyroData=()=>new Promise(resolve=>{'DeviceMotionEvent'in window?window.addEventListener('devicemotion',event=>{gyroData={acc:event.acceleration,rot:event.rotationRate};resolve(gyroData);}):resolve({acc:{x:0,y:0,z:0}});})
-const showFullscreenButton=()=>{const button=document.getElementById('fullscreenButton');button.style.display='block';setTimeout(()=>{button.style.display='none';},3000);}
-const toggleFullscreen=()=>{!document.fullscreenElement?document.documentElement.requestFullscreen():document.exitFullscreen&&document.exitFullscreen();}
-const saveState=()=>{const state=objects.map(obj=>({type:obj.geometry.type,position:obj.position.toArray(),rotation:obj.rotation.toArray(),color:obj.material.color.getHex()}));localStorage.setItem('logosState',JSON.stringify(state));}
-const loadState=()=>{const savedState=JSON.parse(localStorage.getItem('logosState'));if(savedState){savedState.forEach(item=>{let obj;if(item.type==='BoxGeometry'){obj=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial({color:item.color}));}else if(item.type==='BufferGeometry'){const points=[];for(let i=0;i<item.position.length;i+=3){points.push(new THREE.Vector3(item.position[i],item.position[i+1],item.position[i+2]));}obj=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:item.color}));}obj.position.fromArray(item.position);obj.rotation.fromArray(item.rotation);scene.add(obj);objects.push(obj);});}}
-init();getGyroData();
+let scene,camera,renderer,light,objects=[],gyroData={acc:{x:0,y:0,z:0}},buildingStep=0;
+const myths=["🔥","🌱","💧","💡","🌬️"],roles=['战士','牧师','统治者','天使','恶魔','僧侣'];
+
+function init(){
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+  light=new THREE.PointLight(0xffffff,1,100);
+  light.position.set(50,50,50);
+  scene.add(light);
+  camera.position.z=5;
+  loadState();
+  createInitialObjects();
+  animate();
+  document.body.addEventListener('click',showFullscreenButton);
+  window.addEventListener('beforeunload',saveState);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  objects.forEach(obj=>{
+    obj.rotation.x+=0.01;
+    obj.rotation.y+=0.01;
+    obj.position.x+=(Math.random()-0.5)*0.01+gyroData.acc.x*0.001;
+    obj.position.y+=(Math.random()-0.5)*0.01+gyroData.acc.y*0.001;
+    obj.position.z+=(Math.random()-0.5)*0.01+gyroData.acc.z*0.001;
+    interactWithOthers(obj);
+  });
+  buildingStep++;
+  if(buildingStep%200===0)createBuilding();
+  renderer.render(scene,camera);
+}
+
+function interactWithOthers(entity){
+  const target=objects[Math.floor(Math.random()*objects.length)];
+  if(target!==entity){
+    entity.lookAt(target.position);
+    entity.children.forEach(child=>{
+      if(child.isArm){
+        child.lookAt(target.position);
+      }
+    });
+  }
+}
+
+function createInitialObjects(){
+  for(let i=0;i<10;i++)createPerson();
+  createGuide();
+}
+
+function createPerson(){
+  const person=new THREE.Group();
+  const bodyGeometry=new THREE.SphereGeometry(0.2,32,32);
+  const bodyMaterial=new THREE.MeshBasicMaterial({color:Math.random()*0xffffff});
+  const body=new THREE.Mesh(bodyGeometry,bodyMaterial);
+  person.add(body);
+  
+  const eyeGeometry=new THREE.SphereGeometry(0.05,32,32);
+  const eyeMaterial=new THREE.MeshBasicMaterial({color:0xffffff});
+  const leftEye=new THREE.Mesh(eyeGeometry,eyeMaterial);
+  leftEye.position.set(-0.1,0.1,0.2);
+  person.add(leftEye);
+  const rightEye=new THREE.Mesh(eyeGeometry,eyeMaterial);
+  rightEye.position.set(0.1,0.1,0.2);
+  person.add(rightEye);
+  
+  const armGeometry=new THREE.CylinderGeometry(0.05,0.05,0.5,32);
+  const armMaterial=new THREE.MeshBasicMaterial({color:bodyMaterial.color.getHex()});
+  const leftArm=new THREE.Mesh(armGeometry,armMaterial);
+  leftArm.position.set(-0.3,0,0);
+  leftArm.rotation.z=Math.PI/4;
+  leftArm.isArm=true;
+  person.add(leftArm);
+  const rightArm=new THREE.Mesh(armGeometry,armMaterial);
+  rightArm.position.set(0.3,0,0);
+  rightArm.rotation.z=-Math.PI/4;
+  rightArm.isArm=true;
+  person.add(rightArm);
+  
+  person.position.set(Math.random()*4-2,Math.random()*4-2,Math.random()*4-2);
+  imbueKnowledge(person,bodyMaterial.color.getHex());
+  scene.add(person);
+  objects.push(person);
+}
+
+function createGuide(){
+  const guide=new THREE.Group();
+  const bodyGeometry=new THREE.SphereGeometry(0.5,32,32);
+  const bodyMaterial=new THREE.MeshBasicMaterial({color:0xffff00});
+  const body=new THREE.Mesh(bodyGeometry,bodyMaterial);
+  guide.add(body);
+  
+  const eyeGeometry=new THREE.SphereGeometry(0.1,32,32);
+  const eyeMaterial=new THREE.MeshBasicMaterial({color:0xffffff});
+  const leftEye=new THREE.Mesh(eyeGeometry,eyeMaterial);
+  leftEye.position.set(-0.25,0.25,0.5);
+  guide.add(leftEye);
+  const rightEye=new THREE.Mesh(eyeGeometry,eyeMaterial);
+  rightEye.position.set(0.25,0.25,0.5);
+  guide.add(rightEye);
+  
+  const armGeometry=new THREE.CylinderGeometry(0.1,0.1,1,32);
+  const armMaterial=new THREE.MeshBasicMaterial({color:bodyMaterial.color.getHex()});
+  const leftArm=new THREE.Mesh(armGeometry,armMaterial);
+  leftArm.position.set(-0.75,0,0);
+  leftArm.rotation.z=Math.PI/4;
+  leftArm.isArm=true;
+  guide.add(leftArm);
+  const rightArm=new THREE.Mesh(armGeometry,armMaterial);
+  rightArm.position.set(0.75,0,0);
+  rightArm.rotation.z=-Math.PI/4;
+  rightArm.isArm=true;
+  guide.add(rightArm);
+  
+  guide.position.set(0,0,0);
+  imbueKnowledge(guide,bodyMaterial.color.getHex());
+  scene.add(guide);
+  objects.push(guide);
+}
+
+function createLine(x1,y1,z1,x2,y2,z2,color){
+  const material=new THREE.LineBasicMaterial({color:color});
+  const points=[new THREE.Vector3(x1,y1,z1),new THREE.Vector3(x2,y2,z2)];
+  const geometry=new THREE.BufferGeometry().setFromPoints(points);
+  const line=new THREE.Line(geometry,material);
+  imbueKnowledge(line,color);
+  scene.add(line);
+  objects.push(line);
+}
+
+function createSpeedSquare(x,y,z,size,color){
+  createLine(x,y,z,x+size,y,z,color);
+  createLine(x,y,z,x,y+size,z,color);
+  createLine(x,y,z,x+size,y+size,z,color);
+}
+
+function createCompass(x,y,z,radius,color){
+  const geometry=new THREE.CircleGeometry(radius,32);
+  const material=new THREE.MeshBasicMaterial({color:color,side:THREE.DoubleSide});
+  const circle=new THREE.Mesh(geometry,material);
+  imbueKnowledge(circle,color);
+  circle.position.set(x,y,z);
+  scene.add(circle);
+  objects.push(circle);
+}
+
+function createSpirograph(x,y,z,R,r,O,color){
+  const material=new THREE.LineBasicMaterial({color:color});
+  const points=[];
+  for(let t=0;t<Math.PI*2*r/gcd(R,r);t+=0.1){
+    const xPos=(R-r)*Math.cos(t)+O*Math.cos((R-r)/r*t);
+    const yPos=(R-r)*Math.sin(t)-O*Math.sin((R-r)/r*t);
+    points.push(new THREE.Vector3(x+xPos,y+yPos,z));
+  }
+  const geometry=new THREE.BufferGeometry().setFromPoints(points);
+  const spirograph=new THREE.Line(geometry,material);
+  imbueKnowledge(spirograph,color);
+  scene.add(spirograph);
+  objects.push(spirograph);
+}
+
+function gcd(a,b){
+  return b?gcd(b,a%b):a;
+}
+
+function createBlock(x,y,z,color){
+  const geometry=new THREE.BoxGeometry(0.2,0.2,0.2);
+  const material=new THREE.MeshBasicMaterial({color:color});
+  const block=new THREE.Mesh(geometry,material);
+  block.position.set(x,y,z);
+  imbueKnowledge(block,color);
+  scene.add(block);
+  objects.push(block);
+}
+
+function createBuilding(){
+  const baseX=Math.random()*8-4;
+  const baseY=Math.random()*8-4;
+  const colors=[0xff0000,0x00ff00,0x0000ff,0xffff00,0xffffff];
+  const color=colors[Math.floor(Math.random()*colors.length)];
+  for(let i=0;i<5;i++){
+    for(let j=0;j<5;j++){
+      createBlock(baseX+i*0.2,baseY+j*0.2,0,color);
+    }
+  }
+  for(let k=0;k<5;k++){
+    createBlock(baseX+2*0.2,baseY+2*0.2,k*0.2,color);
+  }
+  createSpeedSquare(baseX,baseY,0,1,color);
+  createCompass(baseX,baseY,0,1,color);
+  createSpirograph(baseX,baseY,0,1,0.5,0.2,color);
+}
+
+function imbueKnowledge(obj,color){
+  obj.creationMyth=myths[Math.floor(Math.random()*myths.length)];
+  obj.role=roles[Math.floor(Math.random()*roles.length)];
+  console.log(`Created a ${obj.role} with color ${getColorName(color)} and myth: ${obj.creationMyth}`);
+}
+
+function getColorName(color){
+  switch(color){
+    case 0xff0000:return'red';
+    case 0x00ff00:return'green';
+    case 0x0000ff:return'blue';
+    case 0xffff00:return'yellow';
+    case 0xffffff:return'white';
+    default:return'unknown';
+  }
+}
+
+async function getGyroData(){
+  return new Promise(resolve=>{
+    if('DeviceMotionEvent'in window){
+      window.addEventListener('devicemotion',event=>{
+        gyroData={acc:event.acceleration,rot:event.rotationRate};
+        resolve(gyroData);
+      });
+    }else{
+      resolve({acc:{x:0,y:0,z:0}});
+    }
+  });
+}
+
+function showFullscreenButton(){
+  const button=document.getElementById('fullscreenButton');
+  button.style.display='block';
+  setTimeout(()=>{button.style.display='none';},3000);
+}
+
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen();
+  }else{
+    if(document.exitFullscreen){
+      document.exitFullscreen();
+    }
+  }
+}
+
+function saveState(){
+  const state=objects.map(obj=>({
+    type:obj.geometry.type,
+    position:obj.position.toArray(),
+    rotation:obj.rotation.toArray(),
+    color:obj.material.color.getHex()
+  }));
+  localStorage.setItem('logosState',JSON.stringify(state));
+}
+
+function loadState(){
+  const savedState=JSON.parse(localStorage.getItem('logosState'));
+  if(savedState){
+    savedState.forEach(item=>{
+      let obj;
+      if(item.type==='BoxGeometry'){
+        obj=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial({color:item.color}));
+      }else if(item.type==='BufferGeometry'){
+        const points=[];
+        for(let i=0;i<item.position.length;i+=3){
+          points.push(new THREE.Vector3(item.position[i],item.position[i+1],item.position[i+2]));
+        }
+        obj=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:item.color}));
+      }
+      obj.position.fromArray(item.position);
+      obj.rotation.fromArray(item.rotation);
+      scene.add(obj);
+      objects.push(obj);
+    });
+  }
+}
+
+init();
+getGyroData();
 </script>
 </body>
 </html>
