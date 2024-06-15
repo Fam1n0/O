@@ -8,7 +8,7 @@
 <button id="fullscreenButton" onclick="toggleFullscreen()">Fullscreen</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-let scene,camera,renderer,light,objects=[],gyroData={acc:{x:0,y:0,z:0}},buildingStep=0,tasks=[];
+let scene,camera,renderer,light,objects=[],tasks=[],gyroData={acc:{x:0,y:0,z:0}},buildingStep=0;
 const myths=["🔥","🌱","💧","💡","🌬️"],roles=['战士','牧师','统治者','天使','恶魔','僧侣'];
 
 function init(){
@@ -16,10 +16,17 @@ function init(){
   camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.shadowMap.enabled=true;
   document.body.appendChild(renderer.domElement);
+
   light=new THREE.PointLight(0xffffff,1,100);
   light.position.set(50,50,50);
+  light.castShadow=true;
   scene.add(light);
+
+  const ambientLight=new THREE.AmbientLight(0x404040);
+  scene.add(ambientLight);
+
   camera.position.z=5;
   loadState();
   createInitialObjects();
@@ -38,9 +45,9 @@ function animate(){
     obj.position.z+=(Math.random()-0.5)*0.01+gyroData.acc.z*0.001;
     interactWithOthers(obj);
   });
+  executeTasks();
   buildingStep++;
   if(buildingStep%200===0)createBuilding();
-  executeTasks();
   renderer.render(scene,camera);
 }
 
@@ -64,21 +71,23 @@ function createInitialObjects(){
 function createPerson(){
   const person=new THREE.Group();
   const bodyGeometry=new THREE.SphereGeometry(0.2,32,32);
-  const bodyMaterial=new THREE.MeshBasicMaterial({color:Math.random()*0xffffff});
+  const bodyMaterial=new THREE.MeshStandardMaterial({color:Math.random()*0xffffff});
   const body=new THREE.Mesh(bodyGeometry,bodyMaterial);
+  body.castShadow=true;
+  body.receiveShadow=true;
   person.add(body);
-  
+
   const eyeGeometry=new THREE.SphereGeometry(0.05,32,32);
-  const eyeMaterial=new THREE.MeshBasicMaterial({color:0xffffff});
+  const eyeMaterial=new THREE.MeshStandardMaterial({color:0xffffff});
   const leftEye=new THREE.Mesh(eyeGeometry,eyeMaterial);
   leftEye.position.set(-0.1,0.1,0.2);
   person.add(leftEye);
   const rightEye=new THREE.Mesh(eyeGeometry,eyeMaterial);
   rightEye.position.set(0.1,0.1,0.2);
   person.add(rightEye);
-  
+
   const armGeometry=new THREE.CylinderGeometry(0.05,0.05,0.5,32);
-  const armMaterial=new THREE.MeshBasicMaterial({color:bodyMaterial.color.getHex()});
+  const armMaterial=new THREE.MeshStandardMaterial({color:bodyMaterial.color.getHex()});
   const leftArm=new THREE.Mesh(armGeometry,armMaterial);
   leftArm.position.set(-0.3,0,0);
   leftArm.rotation.z=Math.PI/4;
@@ -89,7 +98,7 @@ function createPerson(){
   rightArm.rotation.z=-Math.PI/4;
   rightArm.isArm=true;
   person.add(rightArm);
-  
+
   person.position.set(Math.random()*4-2,Math.random()*4-2,Math.random()*4-2);
   imbueKnowledge(person,bodyMaterial.color.getHex());
   scene.add(person);
@@ -100,21 +109,23 @@ function createPerson(){
 function createGuide(){
   const guide=new THREE.Group();
   const bodyGeometry=new THREE.SphereGeometry(0.5,32,32);
-  const bodyMaterial=new THREE.MeshBasicMaterial({color:0xffff00});
+  const bodyMaterial=new THREE.MeshStandardMaterial({color:0xffff00});
   const body=new THREE.Mesh(bodyGeometry,bodyMaterial);
+  body.castShadow=true;
+  body.receiveShadow=true;
   guide.add(body);
-  
+
   const eyeGeometry=new THREE.SphereGeometry(0.1,32,32);
-  const eyeMaterial=new THREE.MeshBasicMaterial({color:0xffffff});
+  const eyeMaterial=new THREE.MeshStandardMaterial({color:0xffffff});
   const leftEye=new THREE.Mesh(eyeGeometry,eyeMaterial);
   leftEye.position.set(-0.25,0.25,0.5);
   guide.add(leftEye);
   const rightEye=new THREE.Mesh(eyeGeometry,eyeMaterial);
   rightEye.position.set(0.25,0.25,0.5);
   guide.add(rightEye);
-  
+
   const armGeometry=new THREE.CylinderGeometry(0.1,0.1,1,32);
-  const armMaterial=new THREE.MeshBasicMaterial({color:bodyMaterial.color.getHex()});
+  const armMaterial=new THREE.MeshStandardMaterial({color:bodyMaterial.color.getHex()});
   const leftArm=new THREE.Mesh(armGeometry,armMaterial);
   leftArm.position.set(-0.75,0,0);
   leftArm.rotation.z=Math.PI/4;
@@ -125,7 +136,7 @@ function createGuide(){
   rightArm.rotation.z=-Math.PI/4;
   rightArm.isArm=true;
   guide.add(rightArm);
-  
+
   guide.position.set(0,0,0);
   imbueKnowledge(guide,bodyMaterial.color.getHex());
   scene.add(guide);
@@ -151,10 +162,12 @@ function createSpeedSquare(x,y,z,size,color){
 
 function createCompass(x,y,z,radius,color){
   const geometry=new THREE.CircleGeometry(radius,32);
-  const material=new THREE.MeshBasicMaterial({color:color,side:THREE.DoubleSide});
+  const material=new THREE.MeshStandardMaterial({color:color,side:THREE.DoubleSide});
   const circle=new THREE.Mesh(geometry,material);
   imbueKnowledge(circle,color);
   circle.position.set(x,y,z);
+  circle.castShadow=true;
+  circle.receiveShadow=true;
   scene.add(circle);
   objects.push(circle);
 }
@@ -180,8 +193,10 @@ function gcd(a,b){
 
 function createBlock(x,y,z,color){
   const geometry=new THREE.BoxGeometry(0.2,0.2,0.2);
-  const material=new THREE.MeshBasicMaterial({color:color});
+  const material=new THREE.MeshStandardMaterial({color:color});
   const block=new THREE.Mesh(geometry,material);
+  block.castShadow=true;
+  block.receiveShadow=true;
   block.position.set(x,y,z);
   imbueKnowledge(block,color);
   scene.add(block);
@@ -194,16 +209,16 @@ function createBuilding(){
   const colors=[0xff0000,0x00ff00,0x0000ff,0xffff00,0xffffff];
   const color=colors[Math.floor(Math.random()*colors.length)];
   for(let i=0;i<5;i++){
-    for(let j=0;j<5;j++){
-      createBlock(baseX+i*0.2,baseY+j*0.2,0,color);
+      for(let j=0;j<5;j++){
+        createBlock(baseX+i*0.2,baseY+j*0.2,0,color);
+      }
     }
-  }
-  for(let k=0;k<5;k++){
-    createBlock(baseX+2*0.2,baseY+2*0.2,k*0.2,color);
-  }
-  createSpeedSquare(baseX,baseY,0,1,color);
-  createCompass(baseX,baseY,0,1,color);
-  createSpirograph(baseX,baseY,0,1,0.5,0.2,color);
+    for(let k=0;k<5;k++){
+      createBlock(baseX+2*0.2,baseY+2*0.2,k*0.2,color);
+    }
+    createSpeedSquare(baseX,baseY,0,1,color);
+    createCompass(baseX,baseY,0,1,color);
+    createSpirograph(baseX,baseY,0,1,0.5,0.2,color);
 }
 
 function imbueKnowledge(obj,color){
@@ -268,7 +283,7 @@ function loadState(){
     savedState.forEach(item=>{
       let obj;
       if(item.type==='BoxGeometry'){
-        obj=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial({color:item.color}));
+        obj=new THREE.Mesh(new THREE.BoxGeometry(),new THREE.MeshStandardMaterial({color:item.color}));
       }else if(item.type==='BufferGeometry'){
         const points=[];
         for(let i=0;i<item.position.length;i+=3){
@@ -284,30 +299,28 @@ function loadState(){
   }
 }
 
-function assignTask(entity){
-  const task={
-    type:'build',
-    entity:entity,
-    targetPosition:new THREE.Vector3(Math.random()*8-4,Math.random()*8-4,Math.random()*8-4)
+function assignTask(person) {
+  const task = {
+    person,
+    action: 'build',
+    target: { x: Math.random() * 8 - 4, y: Math.random() * 8 - 4, z: 0 }
   };
   tasks.push(task);
 }
 
-function executeTasks(){
-  tasks.forEach(task=>{
-    if(task.type==='build'){
-      moveTowards(task.entity,task.targetPosition);
-      if(task.entity.position.distanceTo(task.targetPosition)<0.1){
-        createBlock(task.targetPosition.x,task.targetPosition.y,task.targetPosition.z,0xff0000);
-        task.targetPosition.set(Math.random()*8-4,Math.random()*8-4,Math.random()*8-4);
+function executeTasks() {
+  tasks.forEach(task => {
+    const { person, action, target } = task;
+    if (action === 'build') {
+      if (Math.abs(person.position.x - target.x) > 0.1 || Math.abs(person.position.y - target.y) > 0.1) {
+        person.position.x += (target.x - person.position.x) * 0.01;
+        person.position.y += (target.y - person.position.y) * 0.01;
+      } else {
+        createBlock(target.x, target.y, target.z, person.children[0].material.color.getHex());
+        tasks.splice(tasks.indexOf(task), 1);
       }
     }
   });
-}
-
-function moveTowards(entity,targetPosition){
-  const direction=targetPosition.clone().sub(entity.position).normalize();
-  entity.position.add(direction.multiplyScalar(0.01));
 }
 
 init();
