@@ -8,7 +8,7 @@
 <button id="fullscreenButton" onclick="toggleFullscreen()">Fullscreen</button>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-let scene,camera,renderer,light,objects=[],gyroData={acc:{x:0,y:0,z:0}},buildingStep=0;
+let scene,camera,renderer,light,objects=[],gyroData={acc:{x:0,y:0,z:0}},buildingStep=0,tasks=[];
 const myths=["🔥","🌱","💧","💡","🌬️"],roles=['战士','牧师','统治者','天使','恶魔','僧侣'];
 
 function init(){
@@ -40,6 +40,7 @@ function animate(){
   });
   buildingStep++;
   if(buildingStep%200===0)createBuilding();
+  executeTasks();
   renderer.render(scene,camera);
 }
 
@@ -53,7 +54,9 @@ function interactWithOthers(entity){
       }
     });
   }
-}function createInitialObjects(){
+}
+
+function createInitialObjects(){
   for(let i=0;i<10;i++)createPerson();
   createGuide();
 }
@@ -91,6 +94,7 @@ function createPerson(){
   imbueKnowledge(person,bodyMaterial.color.getHex());
   scene.add(person);
   objects.push(person);
+  assignTask(person);
 }
 
 function createGuide(){
@@ -126,6 +130,7 @@ function createGuide(){
   imbueKnowledge(guide,bodyMaterial.color.getHex());
   scene.add(guide);
   objects.push(guide);
+  assignTask(guide);
 }
 
 function createLine(x1,y1,z1,x2,y2,z2,color){
@@ -142,7 +147,9 @@ function createSpeedSquare(x,y,z,size,color){
   createLine(x,y,z,x+size,y,z,color);
   createLine(x,y,z,x,y+size,z,color);
   createLine(x,y,z,x+size,y+size,z,color);
-}function createCompass(x,y,z,radius,color){
+}
+
+function createCompass(x,y,z,radius,color){
   const geometry=new THREE.CircleGeometry(radius,32);
   const material=new THREE.MeshBasicMaterial({color:color,side:THREE.DoubleSide});
   const circle=new THREE.Mesh(geometry,material);
@@ -275,6 +282,32 @@ function loadState(){
       objects.push(obj);
     });
   }
+}
+
+function assignTask(entity){
+  const task={
+    type:'build',
+    entity:entity,
+    targetPosition:new THREE.Vector3(Math.random()*8-4,Math.random()*8-4,Math.random()*8-4)
+  };
+  tasks.push(task);
+}
+
+function executeTasks(){
+  tasks.forEach(task=>{
+    if(task.type==='build'){
+      moveTowards(task.entity,task.targetPosition);
+      if(task.entity.position.distanceTo(task.targetPosition)<0.1){
+        createBlock(task.targetPosition.x,task.targetPosition.y,task.targetPosition.z,0xff0000);
+        task.targetPosition.set(Math.random()*8-4,Math.random()*8-4,Math.random()*8-4);
+      }
+    }
+  });
+}
+
+function moveTowards(entity,targetPosition){
+  const direction=targetPosition.clone().sub(entity.position).normalize();
+  entity.position.add(direction.multiplyScalar(0.01));
 }
 
 init();
