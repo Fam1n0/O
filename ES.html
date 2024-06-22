@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elemental Reality</title>
+    <style>
+        body, html {margin: 0; overflow: hidden;}
+        canvas {display: block; width: 100vw; height: 100vh;}
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .slider-container {display: flex; flex-direction: column; gap: 5px;}
+        #button-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+        }
+        button, input[type="file"] {
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover, input[type="file"]:hover {background: #555;}
+        .slider-label {color: white;}
+    </style>
+</head>
+<body>
+    <div id="button-container">
+        <button id="toggle-controls">Toggle Controls</button>
+        <button id="fullscreen">Fullscreen</button>
+        <input type="file" id="upload" accept="image/*">
+        <button id="save">Save Image</button>
+    </div>
+    <div id="controls">
+        <div class="slider-container">
+            <label class="slider-label" for="intensity">Overall Intensity</label>
+            <input type="range" id="intensity" min="0" max="0.1" step="0.01" value="0.02">
+        </div>
+        <div class="slider-container">
+            <label class="slider-label" for="frequency">Overall Frequency</label>
+            <input type="range" id="frequency" min="10" max="50" step="1" value="20">
+        </div>
+        <div class="slider-container">
+            <h3 style="color: white; margin: 0;">Earth Layer</h3>
+            <label class="slider-label" for="earthDetail">Detail</label>
+            <input type="range" id="earthDetail" min="0" max="10" step="0.1" value="1">
+            <label class="slider-label" for="earthIntensity">Intensity</label>
+            <input type="range" id="earthIntensity" min="0" max="1" step="0.01" value="1">
+        </div>
+        <div class="slider-container">
+            <h3 style="color: white; margin: 0;">Air Layer</h3>
+            <label class="slider-label" for="airDetail">Detail</label>
+            <input type="range" id="airDetail" min="0" max="10" step="0.1" value="1">
+            <label class="slider-label" for="airIntensity">Intensity</label>
+            <input type="range" id="airIntensity" min="0" max="1" step="0.01" value="1">
+        </div>
+        <div class="slider-container">
+            <h3 style="color: white; margin: 0;">Fire Layer</h3>
+            <label class="slider-label" for="fireDetail">Detail</label>
+            <input type="range" id="fireDetail" min="0" max="10" step="0.1" value="1">
+            <label class="slider-label" for="fireIntensity">Intensity</label>
+            <input type="range" id="fireIntensity" min="0" max="1" step="0.01" value="1">
+        </div>
+        <div class="slider-container">
+            <h3 style="color: white; margin: 0;">Water Layer</h3>
+            <label class="slider-label" for="waterDetail">Detail</label>
+            <input type="range" id="waterDetail" min="0" max="10" step="0.1" value="1">
+            <label class="slider-label" for="waterIntensity">Intensity</label>
+            <input type="range" id="waterIntensity" min="0" max="1" step="0.01" value="1">
+        </div>
+    </div>
+    <canvas id="canvas"></canvas>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const canvas = document.getElementById('canvas'),
+              upload = document.getElementById('upload'),
+              saveButton = document.getElementById('save'),
+              fullscreenButton = document.getElementById('fullscreen'),
+              toggleControlsButton = document.getElementById('toggle-controls'),
+              controls = document.getElementById('controls'),
+              buttonContainer = document.getElementById('button-container'),
+              intensitySlider = document.getElementById('intensity'),
+              frequencySlider = document.getElementById('frequency'),
+              earthDetailSlider = document.getElementById('earthDetail'),
+              earthIntensitySlider = document.getElementById('earthIntensity'),
+              airDetailSlider = document.getElementById('airDetail'),
+              airIntensitySlider = document.getElementById('airIntensity'),
+              fireDetailSlider = document.getElementById('fireDetail'),
+              fireIntensitySlider = document.getElementById('fireIntensity'),
+              waterDetailSlider = document.getElementById('waterDetail'),
+              waterIntensitySlider = document.getElementById('waterIntensity');
+
+        const renderer = new THREE.WebGLRenderer({canvas, preserveDrawingBuffer: true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        const scene = new THREE.Scene(),
+              camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1),
+              geometry = new THREE.PlaneGeometry(2, 2);
+
+        let fragmentShader = `
+            uniform sampler2D u_image;
+            uniform float u_intensity;
+            uniform float u_frequency;
+            uniform float u_earthDetail;
+            uniform float u_earthIntensity;
+            uniform float u_airDetail;
+            uniform float u_airIntensity;
+            uniform float u_fireDetail;
+            uniform float u_fireIntensity;
+            uniform float u_waterDetail;
+            uniform float u_waterIntensity;
+            varying vec2 v_uv;
+            void main() {
+                vec2 uv = v_uv;
+                vec4 color = texture2D(u_image, uv);
+                
+                // Earth Layer (Red)
+                float earthPattern = sin(uv.x * u_earthDetail) * sin(uv.y * u_earthDetail);
+                color.r += earthPattern * u_earthIntensity;
+                
+                // Air Layer (Green)
+                float airPattern = cos(uv.x * u_airDetail) * cos(uv.y * u_airDetail);
+                color.g += airPattern * u_airIntensity;
+                
+                // Fire Layer (Yellow)
+                float firePattern = tan(uv.x * u_fireDetail) * tan(uv.y * u_fireDetail);
+                color.r += firePattern * u_fireIntensity;
+                color.g += firePattern * u_fireIntensity;
+                
+                // Water Layer (Blue)
+                float waterPattern = sin(uv.x * u_waterDetail + u_waterIntensity) * cos(uv.y * u_waterDetail + u_waterIntensity);
+                color.b += waterPattern * u_waterIntensity;
+                
+                gl_FragColor = color;
+            }`;
+
+        const vertexShader = `varying vec2 v_uv; void main() { v_uv = uv; gl_Position = vec4(position, 1.0); }`;
+        const material = new THREE.ShaderMaterial({
+            uniforms: {
+                u_image: {type: 't', value: null},
+                u_intensity: {type: 'f', value: 0.02},
+                u_frequency: {type: 'f', value: 20.0},
+                u_earthDetail: {type: 'f', value: 1},
+                u_earthIntensity: {type: 'f', value: 1},
+                u_airDetail: {type: 'f', value: 1},
+                u_airIntensity: {type: 'f', value: 1},
+                u_fireDetail: {type: 'f', value: 1},
+                u_fireIntensity: {type: 'f', value: 1},
+                u_waterDetail: {type: 'f', value: 1},
+                u_waterIntensity: {type: 'f', value: 1}
+            },
+            vertexShader, fragmentShader
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        upload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const texture = new THREE.Texture(img);
+                        texture.needsUpdate = true;
+                        material.uniforms.u_image.value = texture;
+                        renderer.setSize(window.innerWidth, window.innerHeight);
+                        renderer.render(scene, camera);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function updateUniforms() {
+            material.uniforms.u_intensity.value = parseFloat(intensitySlider.value);
+            material.uniforms.u_frequency.value = parseFloat(frequencySlider.value);
+            material.uniforms.u_earthDetail.value = parseFloat(earthDetailSlider.value);
+            material.uniforms.u_earthIntensity.value = parseFloat(earthIntensitySlider.value);
+            material.uniforms.u_airDetail.value = parseFloat(airDetailSlider.value);
+            material.uniforms.u_airIntensity.value = parseFloat(airIntensitySlider.value);
+            material.uniforms.u_fireDetail.value = parseFloat(fireDetailSlider.value);
+            material.uniforms.u_fireIntensity.value = parseFloat(fireIntensitySlider.value);
+            material.uniforms.u_waterDetail.value = parseFloat(waterDetailSlider.value);
+            material.uniforms.u_waterIntensity.value = parseFloat(waterIntensitySlider.value);
+            renderer.render(scene, camera);
+        }
+
+        [intensitySlider, frequencySlider, earthDetailSlider, earthIntensitySlider, airDetailSlider, airIntensitySlider, fireDetailSlider, fireIntensitySlider, waterDetailSlider, waterIntensitySlider].forEach(slider => {
+            slider.addEventListener('input', updateUniforms);
+        });
+
+        saveButton.addEventListener('click', () => {
+            renderer.setSize(window.innerWidth * 2, window.innerHeight * 2);
+            renderer.render(scene, camera);
+            canvas.toBlob((blob) => {
+                const link = document.createElement('a');
+                const uniqueFilename = `trippy-image-${Date.now()}.png`;
+                link.download = uniqueFilename;
+                link.href = URL.createObjectURL(blob);
+                link.click();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.render(scene, camera);
+            }, 'image/png');
+        });
+
+        toggleControlsButton.addEventListener('click', () => {
+            controls.style.display = controls.style.display === 'none' ? 'flex' : 'none';
+        });
+
+        fullscreenButton.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        canvas.addEventListener('click', () => {
+            const display = controls.style.display === 'none' ? 'flex' : 'none';
+            controls.style.display = display;
+            [toggleControlsButton, fullscreenButton, upload, saveButton].forEach(button => {
+                button.style.display = display;
+            });
+        });
+
+        function handleOrientation(event) {
+            const gamma = event.gamma, beta = event.beta;
+            material.uniforms.u_earthDetail.value = (gamma + 180) % 360;
+            material.uniforms.u_airDetail.value = (beta + 180) % 360;
+            material.uniforms.u_fireDetail.value = (gamma + beta + 360) % 360;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('deviceorientation', handleOrientation);
+        renderer.render(scene, camera);
+    </script>
+</body>
+</html>
