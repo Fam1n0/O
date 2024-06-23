@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Golem</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .controls {
+            position: absolute;
+            bottom: 10%;
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+        .controls .row {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+        .controls button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid white;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        <div class="controls" id="controls">
+            <div class="row">
+                <button onclick="toggleVisibility()">Toggle Visibility</button>
+                <button onclick="toggleFullscreen()">Toggle Fullscreen</button>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const controls = document.getElementById('controls');
+    const layers = [];
+    let isVisible = true;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+
+    function toggleVisibility() {
+        isVisible = !isVisible;
+        controls.style.display = isVisible ? 'flex' : 'none';
+    }
+
+    function createSpiralLayer() {
+        return {
+            spirals: Array.from({ length: 30 }, () => createSpiral(canvas.width / 2, canvas.height / 2, 0, Math.random() * 2 * Math.PI, randomColor()))
+        };
+    }
+
+    function createSpiral(x, y, radius, angle, color) {
+        return { x, y, radius, angle, speed: 0.02, color, direction: 0.1, amplitude: 0.1 };
+    }
+
+    function randomColor() {
+        const r = Math.floor(Math.random() * 256);
+        const g = Math.floor(Math.random() * 256);
+        const b = Math.floor(Math.random() * 256);
+        return `rgba(${r}, ${g}, ${b}, 0.5)`;
+    }
+
+    function drawSpiral(spiral) {
+        spiral.angle += spiral.speed;
+        ctx.beginPath();
+        for (let t = 0; t < 1000; t += 0.2) { // Reduced the number of points and increment to improve performance
+            const x = spiral.x + (spiral.radius + t * spiral.amplitude) * Math.cos(spiral.angle + t * spiral.direction);
+            const y = spiral.y + (spiral.radius + t * spiral.amplitude) * Math.sin(spiral.angle + t * spiral.direction);
+            ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = spiral.color;
+        ctx.stroke();
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        layers.forEach(layer => {
+            layer.spirals.forEach(drawSpiral);
+        });
+        requestAnimationFrame(animate);
+    }
+
+    function updateSpirals(event) {
+        const { alpha, beta, gamma } = event;
+        layers.forEach(layer => {
+            layer.spirals.forEach(spiral => {
+                spiral.speed = 0.01 + 0.09 * (beta + 180) / 360; // Speed: 0.01 to 0.1
+                spiral.direction = -0.1 + 0.2 * (gamma + 90) / 180; // Direction: -0.1 to 0.1
+                spiral.amplitude = 0.05 + 0.45 * (alpha + 180) / 360; // Amplitude: 0.05 to 0.5
+            });
+        });
+    }
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'c') {
+            isVisible = true;
+            controls.style.display = 'flex';
+        }
+    });
+
+    window.addEventListener('touchstart', () => {
+        isVisible = true;
+        controls.style.display = 'flex';
+    });
+
+    window.addEventListener('deviceorientation', updateSpirals);
+
+    for (let i = 0; i < 5; i++) {
+        layers.push(createSpiralLayer());
+    }
+
+    animate();
+</script>
+</html>
