@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Golem</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .controls {
+            position: absolute;
+            bottom: 10%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .controls .row {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+        .controls button, .controls input, .controls select {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid white;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+        .controls input[type="color"] {
+            padding: 0;
+            border: none;
+            height: 40px;
+        }
+        .controls label {
+            display: flex;
+            align-items: center;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        <div class="controls">
+            <div class="row">
+                <button onclick="addLayer()">Add Layer</button>
+                <button onclick="toggleVisibility()">Toggle Visibility</button>
+                <button onclick="toggleFullscreen()">Toggle Fullscreen</button>
+            </div>
+            <div class="row">
+                <label>Layer: <select id="layerSelect" onchange="updateControls()"></select></label>
+                <label>Color: <input type="color" id="colorPicker" onchange="updateSpiralColor()"></label>
+            </div>
+            <div class="row">
+                <label>Speed: <input type="range" id="speedRange" min="0.01" max="0.1" step="0.01" onchange="updateSpiralSpeed()"></label>
+                <label>Direction: <input type="range" id="directionRange" min="-0.1" max="0.1" step="0.01" onchange="updateSpiralDirection()"></label>
+                <label>Amplitude: <input type="range" id="amplitudeRange" min="0.05" max="0.5" step="0.05" onchange="updateSpiralAmplitude()"></label>
+            </div>
+        </div>
+    </div>
+</body>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const layerSelect = document.getElementById('layerSelect');
+    const colorPicker = document.getElementById('colorPicker');
+    const speedRange = document.getElementById('speedRange');
+    const directionRange = document.getElementById('directionRange');
+    const amplitudeRange = document.getElementById('amplitudeRange');
+    const layers = [];
+    let isVisible = true;
+    let selectedLayerIndex = 0;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+
+    function addLayer() {
+        const layer = createSpiralLayer();
+        layers.push(layer);
+        updateLayerSelect();
+    }
+
+    function toggleVisibility() {
+        isVisible = !isVisible;
+        document.querySelector('.controls').style.display = isVisible ? 'flex' : 'none';
+    }
+
+    function createSpiralLayer() {
+        return {
+            spirals: [
+                createSpiral(canvas.width / 2, canvas.height / 2, 0, 0, 'rgba(255, 0, 0, 0.5)'),
+                createSpiral(canvas.width / 2, canvas.height / 2, 0, Math.PI / 2, 'rgba(0, 255, 0, 0.5)'),
+                createSpiral(canvas.width / 2, canvas.height / 2, 0, Math.PI, 'rgba(255, 255, 0, 0.5)'),
+                createSpiral(canvas.width / 2, canvas.height / 2, 0, (3 * Math.PI) / 2, 'rgba(0, 0, 255, 0.5)')
+            ]
+        };
+    }
+
+    function createSpiral(x, y, radius, angle, color) {
+        return { x, y, radius, angle, speed: 0.02, color, direction: 0.1, amplitude: 0.1 };
+    }
+
+    function drawSpiral(spiral) {
+        spiral.angle += spiral.speed;
+        ctx.beginPath();
+        for (let t = 0; t < 3000; t += 0.1) {
+            const x = spiral.x + (spiral.radius + t * spiral.amplitude) * Math.cos(spiral.angle + t * spiral.direction);
+            const y = spiral.y + (spiral.radius + t * spiral.amplitude) * Math.sin(spiral.angle + t * spiral.direction);
+            ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = spiral.color;
+        ctx.stroke();
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        layers.forEach(layer => {
+            layer.spirals.forEach(drawSpiral);
+        });
+        requestAnimationFrame(animate);
+    }
+
+    function updateLayerSelect() {
+        layerSelect.innerHTML = layers.map((_, index) => `<option value="${index}">Layer ${index + 1}</option>`).join('');
+        updateControls();
+    }
+
+    function updateControls() {
+        const layer = layers[selectedLayerIndex];
+        const spiral = layer.spirals[0];
+        colorPicker.value = rgbToHex(spiral.color);
+        speedRange.value = spiral.speed;
+        directionRange.value = spiral.direction;
+        amplitudeRange.value = spiral.amplitude;
+    }
+
+    function rgbToHex(rgb) {
+        rgb = rgb.match(/^rgba?[\s+]?([0-9]+)[\s+,]+([0-9]+)[\s+,]+([0-9]+)[\s+]?.*$/i);
+        return rgb && `#${(1 << 24 | parseInt(rgb[1]) << 16 | parseInt(rgb[2]) << 8 | parseInt(rgb[3])).toString(16).slice(1)}`;
+    }
+
+    function updateSpiralColor() {
+        layers[selectedLayerIndex].spirals.forEach(spiral => spiral.color = colorPicker.value);
+    }
+
+    function updateSpiralSpeed() {
+        layers[selectedLayerIndex].spirals.forEach(spiral => spiral.speed = parseFloat(speedRange.value));
+    }
+
+    function updateSpiralDirection() {
+        layers[selectedLayerIndex].spirals.forEach(spiral => spiral.direction = parseFloat(directionRange.value));
+    }
+
+    function updateSpiralAmplitude() {
+        layers[selectedLayerIndex].spirals.forEach(spiral => spiral.amplitude = parseFloat(amplitudeRange.value));
+    }
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+    addLayer();
+    animate();
+</script>
+</html>
