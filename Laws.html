@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LawsEnvisioned</title>
+<style>
+  body, html {margin: 0; padding: 0; overflow: hidden; background: black; color: white; font-family: Arial, sans-serif;}
+  #toggleBtn {position: fixed; top: 10px; right: 10px; padding: 10px; background: rgba(255, 255, 255, 0.2); border: none; color: white; cursor: pointer; transition: opacity 0.5s;}
+</style>
+</head>
+<body>
+<button id="toggleBtn">Toggle Fullscreen</button>
+<canvas id="canvas"></canvas>
+<script>
+/* © 2024 Jamison Banks */
+const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+const toggleBtn = document.getElementById('toggleBtn');
+toggleBtn.addEventListener('click', () => {
+  !document.fullscreenElement ? document.documentElement.requestFullscreen() : document.exitFullscreen && document.exitFullscreen();
+});
+
+let inactivityTimeout;
+const resetInactivityTimeout = () => {
+  clearTimeout(inactivityTimeout);
+  toggleBtn.style.opacity = 1;
+  inactivityTimeout = setTimeout(() => {
+    toggleBtn.style.opacity = 0;
+  }, 3000);
+};
+resetInactivityTimeout();
+document.addEventListener('mousemove', resetInactivityTimeout);
+document.addEventListener('click', resetInactivityTimeout);
+
+const colors = ['#ff9d00', '#ff007f', '#00ff9d', '#007fff'], particles = [], connections = [], particleCount = 100;
+
+function Particle(x, y) {
+  this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * 2; this.vy = (Math.random() - 0.5) * 2;
+  this.color = colors[Math.floor(Math.random() * colors.length)]; this.size = 2; this.age = 0; this.metawave = Math.random() * 10; this.history = [];
+}
+
+for (let i = 0; i < particleCount; i++) particles.push(new Particle(Math.random() * canvas.width, Math.random() * canvas.height));
+
+function drawParticle(p) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill();
+  p.history.push({ x: p.x, y: p.y }); if (p.history.length > 20) p.history.shift();
+  ctx.beginPath();
+  for (let i = 0; i < p.history.length; i++) {
+    const point = p.history[i]; ctx.lineTo(point.x, point.y);
+  }
+  ctx.strokeStyle = p.color; ctx.stroke(); p.x += p.vx; p.y += p.vy; if (p.x > canvas.width || p.x < 0) p.vx *= -1; if (p.y > canvas.height || p.y < 0) p.vy *= -1;
+  p.age++;
+  p.size = 2 + Math.sin(p.metawave + p.age * 0.01) * 2; // Change size based on metawave and age
+  p.color = `hsl(${(p.metawave * 36 + p.age) % 360}, 100%, 50%)`; // Change color based on metawave and age
+}
+
+function drawConnections() {
+  for (let i = 0; i < connections.length; i++) {
+    const { p1, p2 } = connections[i];
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.stroke();
+  }
+}
+
+function updateConnections() {
+  connections.length = 0;
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const p1 = particles[i], p2 = particles[j], distance = Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+      if (distance < 100) {
+        connections.push({ p1, p2 });
+        if (p1.color === p2.color) {
+          const attractionForce = 0.05;
+          p1.vx -= (p1.x - p2.x) * attractionForce / distance;
+          p1.vy -= (p1.y - p2.y) * attractionForce / distance;
+          p2.vx += (p1.x - p2.x) * attractionForce / distance;
+          p2.vy += (p1.y - p2.y) * attractionForce / distance;
+        }
+        if (distance < 20) {
+          const colorTemp = p1.color;
+          p1.color = p2.color;
+          p2.color = colorTemp;
+          p1.size = Math.min(p1.size + 0.1, 5);
+          p2.size = Math.min(p2.size + 0.1, 5);
+          p1.metawave += 0.1; // Change metawave on close contact
+          p2.metawave += 0.1; // Change metawave on close contact
+        }
+      }
+    }
+  }
+}
+
+function drawEnergyFields() {
+  particles.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 50, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 255, 255, 0.1)`;
+    ctx.stroke();
+  });
+}
+
+function animate() {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawEnergyFields();
+  particles.forEach(p => drawParticle(p));
+  updateConnections();
+  drawConnections();
+  requestAnimationFrame(animate);
+}
+
+canvas.addEventListener('click', (event) => {
+  const x = event.clientX, y = event.clientY;
+  particles.push(new Particle(x, y));
+});
+
+animate();
+/* © 2024 Jamison Banks */
+</script>
+</body>
+</html>
