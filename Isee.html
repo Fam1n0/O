@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Sacred Device of the Ancient Disciplines</title>
+    <style>
+        body {
+            font-family: 'Arial, sans-serif';
+            background: #ffffff;
+            color: #333;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            border-radius: 10px;
+            text-align: center;
+            max-width: 600px;
+            animation: fadeIn 2s ease-in-out;
+        }
+        h1 {
+            color: #444;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        .button:hover {
+            background: #666;
+        }
+        .visuals {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border: 1px solid #444;
+        }
+        #video {
+            display: none;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.dom.js"></script>
+    <script src="https://unpkg.com/ml5@0.10.0/dist/ml5.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>The Sacred Device of the Ancient Disciplines</h1>
+        <div class="section">
+            <p>Experience the sacred process through interactive visuals and dynamic content.</p>
+            <button class="button" id="startButton">Begin the Journey</button>
+        </div>
+        <div class="visuals" id="visuals">
+            <canvas id="sacredCanvas" width="800" height="800"></canvas>
+            <video id="video" width="800" height="800"></video>
+        </div>
+    </div>
+
+    <script>
+        let centers = [
+            { x: 200, y: 200, angle: 0, speed: 0.01, color: 0 },
+            { x: 600, y: 200, angle: 0, speed: 0.02, color: 120 },
+            { x: 400, y: 600, angle: 0, speed: 0.03, color: 240 }
+        ];
+        let eyeX = 400, eyeY = 400;
+        let video;
+        let poseNet;
+        let poses = [];
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            document.getElementById('visuals').style.display = 'block';
+            startVisuals();
+        });
+
+        function startVisuals() {
+            const canvas = document.getElementById('sacredCanvas');
+            const ctx = canvas.getContext('2d');
+
+            video = createCapture(VIDEO);
+            video.size(800, 800);
+            video.id('video');
+            video.hide();
+
+            poseNet = ml5.poseNet(video, modelReady);
+            poseNet.on('pose', gotPoses);
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                centers.forEach(center => {
+                    ctx.save();
+                    ctx.translate(center.x, center.y);
+                    ctx.rotate(center.angle);
+
+                    for (let i = 0; i < 3; i++) {
+                        drawLayer(ctx, 5 - i, 20 * (i + 1), center.angle * (i + 1), (center.color + i * 60) % 360);
+                    }
+
+                    ctx.restore();
+                    center.angle += center.speed;
+                    center.x += (eyeX - center.x) * 0.01;
+                    center.y += (eyeY - center.y) * 0.01;
+
+                    center.x = (center.x + canvas.width) % canvas.width;
+                    center.y = (center.y + canvas.height) % canvas.height;
+                });
+
+                requestAnimationFrame(draw);
+            }
+
+            function drawLayer(ctx, rings, radius, rotation, color) {
+                ctx.save();
+                ctx.rotate(rotation);
+                ctx.strokeStyle = `hsl(${color}, 100%, 50%)`;
+                for (let i = 0; i < rings; i++) {
+                    for (let j = 0; j < 6; j++) {
+                        let x = radius * i * Math.cos(Math.PI / 3 * j);
+                        let y = radius * i * Math.sin(Math.PI / 3 * j);
+                        drawHexagon(ctx, x, y, radius);
+                    }
+                }
+                ctx.restore();
+            }
+
+            function drawHexagon(ctx, x, y, radius) {
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    ctx.lineTo(
+                        x + radius * Math.cos(Math.PI / 3 * i),
+                        y + radius * Math.sin(Math.PI / 3 * i)
+                    );
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+
+            draw();
+        }
+
+        function modelReady() {
+            console.log('Model Loaded!');
+        }
+
+        function gotPoses(results) {
+            poses = results;
+            if (poses.length > 0) {
+                let eyeR = poses[0].pose.rightEye;
+                let eyeL = poses[0].pose.leftEye;
+                eyeX = (eyeR.x + eyeL.x) / 2;
+                eyeY = (eyeR.y + eyeL.y) / 2;
+            }
+        }
+    </script>
+</body>
+</html>
