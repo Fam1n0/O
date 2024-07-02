@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hydromancy Birthday Celebration</title>
+<style>
+  body {margin: 0; overflow: hidden; background: #000;}
+  canvas {display: block;}
+  #fullscreenBtn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.7);
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.5s;
+  }
+  #fullscreenBtn.hidden {opacity: 0;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+<body>
+<button id="fullscreenBtn">Fullscreen</button>
+<script>
+/* © 2024 Jamison Banks */
+
+let cols, rows;
+let current, previous;
+let dampening = 0.99;
+let bowlRadius;
+let centerX, centerY;
+let fullscreenBtn, btnTimeout;
+let shapes = [];
+let maxShapes = 20;
+let userActions = [];
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  cols = width;
+  rows = height;
+  current = new Float32Array(cols * rows);
+  previous = new Float32Array(cols * rows);
+  bowlRadius = min(width, height) / 2;
+  centerX = width / 2;
+  centerY = height / 2;
+
+  fullscreenBtn = select('#fullscreenBtn');
+  fullscreenBtn.mousePressed(toggleFullscreen);
+  hideButton();
+
+  for (let i = 0; i < maxShapes; i++) {
+    shapes.push(new Shape());
+  }
+}
+
+function draw() {
+  background(0);
+  loadPixels();
+  for (let x = 1; x < cols - 1; x++) {
+    for (let y = 1; y < rows - 1; y++) {
+      let index = x + y * cols;
+      current[index] = (
+        previous[index - 1] +
+        previous[index + 1] +
+        previous[index - cols] +
+        previous[index + cols]
+      ) / 2 - current[index];
+      current[index] *= dampening;
+
+      let brightness = current[index] * 255;
+      let pixelIndex = index * 4;
+      pixels[pixelIndex] = brightness;
+      pixels[pixelIndex + 1] = brightness;
+      pixels[pixelIndex + 2] = brightness;
+      pixels[pixelIndex + 3] = 255;
+    }
+  }
+  updatePixels();
+  swap();
+  drawShapes();
+  createStatic();
+  processUserActions();
+}
+
+function swap() {
+  let temp = previous;
+  previous = current;
+  current = temp;
+}
+
+function drawShapes() {
+  for (let shape of shapes) {
+    shape.update();
+    shape.display();
+  }
+}
+
+function mousePressed() {
+  if (dist(mouseX, mouseY, centerX, centerY) < bowlRadius) {
+    createRipple(mouseX, mouseY);
+  }
+  showButton();
+}
+
+function createRipple(x, y) {
+  let radius = 10;
+  for (let i = -radius; i < radius; i++) {
+    for (let j = -radius; j < radius; j++) {
+      if (x + i > 0 && x + i < cols && y + j > 0 && y + j < rows) {
+        previous[(x + i) + (y + j) * cols] = 255;
+      }
+    }
+  }
+}
+
+function keyPressed() {
+  userActions.push({type: 'key', key: key, timestamp: millis()});
+  if (key === 'F' || key === 'f') {
+    clearRipples();
+  } else if (key === 'C' || key === 'c') {
+    changeShapeColors();
+  } else if (key === 'S' || key === 's') {
+    changeShapeSizes();
+  } else if (key === 'R' || key === 'r') {
+    changeRotationSpeeds();
+  }
+}
+
+function clearRipples() {
+  current.fill(0);
+  previous.fill(0);
+}
+
+function changeShapeColors() {
+  for (let shape of shapes) {
+    shape.color = color(random(360), 100, 100);
+  }
+}
+
+function changeShapeSizes() {
+  for (let shape of shapes) {
+    shape.size = random(10, 50);
+  }
+}
+
+function changeRotationSpeeds() {
+  for (let shape of shapes) {
+    shape.rotationSpeed = random(-0.1, 0.1);
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  cols = width;
+  rows = height;
+  current = new Float32Array(cols * rows);
+  previous = new Float32Array(cols * rows);
+  bowlRadius = min(width, height) / 2;
+  centerX = width / 2;
+  centerY = height / 2;
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+    fullscreenBtn.html('Exit Fullscreen');
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+      fullscreenBtn.html('Fullscreen');
+    }
+  }
+}
+
+function hideButton() {
+  clearTimeout(btnTimeout);
+  btnTimeout = setTimeout(() => {
+    fullscreenBtn.addClass('hidden');
+  }, 3000);
+}
+
+function showButton() {
+  fullscreenBtn.removeClass('hidden');
+  hideButton();
+}
+
+function createStatic() {
+  let staticDensity = 0.02; // Adjust static density
+  loadPixels();
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (random() < staticDensity) {
+      let staticVal = random(50, 255);
+      pixels[i] = staticVal;
+      pixels[i + 1] = staticVal;
+      pixels[i + 2] = staticVal;
+      pixels[i + 3] = 255;
+    }
+  }
+  updatePixels();
+}
+
+function processUserActions() {
+  if (userActions.length > 0) {
+    userActions = [];
+    adjustShapesBasedOnReward();
+  }
+}
+
+function adjustShapesBasedOnReward() {
+  for (let shape of shapes) {
+    shape.growthRate *= 1.05;
+    shape.rotationSpeed *= 1.05;
+    shape.size = constrain(shape.size, 10, 100);
+    shape.growthRate = constrain(shape.growthRate, -0.5, 0.5);
+    shape.rotationSpeed = constrain(shape.rotationSpeed, -0.1, 0.1);
+  }
+}
+
+class Shape {
+  constructor() {
+    this.x = random(width);
+    this.y = random(height);
+    this.size = random(10, 50);
+    this.growthRate = random(0.1, 0.5);
+    this.angle = random(TWO_PI);
+    this.rotationSpeed = random(-0.01, 0.01);
+    this.color = color(random(360), 100, 100);
+  }
+
+  update() {
+    this.size += this.growthRate;
+    if (this.size > 100 || this.size < 10) {
+      this.growthRate *= -1;
+    }
+    this.angle += this.rotationSpeed;
+  }
+
+  display() {
+    push();
+    translate(this.x, this.y);
+    rotate(this.angle);
+    fill(this.color);
+    noStroke();
+    ellipse(0, 0, this.size, this.size);
+    pop();
+  }
+}
+
+/* © 2024 Jamison Banks */
+</script>
+</body>
+</html>
