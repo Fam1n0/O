@@ -1,0 +1,138 @@
+<HTML>
+<HEAD>
+<META charset="UTF-8">
+<META name="viewport" content="width=device-width,initial-scale=1.0">
+<TITLE>Transformative Vision</TITLE>
+<STYLE>
+body,html{margin:0;overflow:hidden;background:#000}
+canvas{display:block;width:100vw;height:100vh}
+#controls{position:absolute;top:10px;left:10px;z-index:10;display:flex;flex-direction:column;gap:10px;background-color:rgba(0,0,0,0.5);padding:10px;border-radius:10px;max-height:90vh;overflow-y:auto}
+.slider-container{display:flex;flex-direction:column;gap:5px}
+#button-container{position:absolute;top:10px;right:10px;z-index:10;display:flex;gap:10px}
+button{padding:10px;background:#333;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:16px}
+button:hover{background:#555}
+.slider-label{color:white}
+</STYLE>
+</HEAD>
+<BODY>
+<DIV id="button-container">
+<button id="toggle-controls">Controls</button>
+<button id="fullscreen">Fullscreen</button>
+<button id="save">Save</button>
+</DIV>
+<DIV id="controls">
+<DIV class="slider-container">
+<label class="slider-label" for="patternSensitivity">Sensitivity</label>
+<input type="range" id="patternSensitivity" min="0" max="1" step="0.01" value="0.5">
+</DIV>
+<DIV class="slider-container">
+<label class="slider-label" for="style">Style</label>
+<select id="style">
+<option value="mystical">Mystical</option>
+<option value="hermetic">Hermetic</option>
+<option value="trippy">Trippy</option>
+<option value="warpedEdges">Warped Edges</option>
+<option value="trailedLines">Trailed Lines</option>
+<option value="spaceBetween">The Space Between</option>
+<option value="mirroredPrism">Mirrored Prism</option>
+<option value="fractalMirror">Fractal Mirror</option>
+<option value="kaleidoscope">Kaleidoscope</option>
+<option value="flowingEnergy">Flowing Energy</option>
+</select>
+</DIV>
+</DIV>
+<canvas id="canvas"></canvas>
+<script>
+const video=document.createElement('video'),canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),patternSensitivitySlider=document.getElementById('patternSensitivity'),styleSelect=document.getElementById('style'),toggleControlsButton=document.getElementById('toggle-controls'),fullscreenButton=document.getElementById('fullscreen'),saveButton=document.getElementById('save'),controls=document.getElementById('controls');
+navigator.mediaDevices.getUserMedia({video:true}).then(stream=>{video.srcObject=stream;video.play();});
+canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+function draw(){
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    let imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+    let data=imageData.data;
+    let sensitivity=parseFloat(patternSensitivitySlider.value);
+    let style=styleSelect.value;
+    for(let i=0;i<data.length;i+=4){
+        let r=data[i],g=data[i+1],b=data[i+2];
+        let brightness=(r+g+b)/3;
+        if(brightness<sensitivity*255){
+            let faceColor=transformToFace(r,g,b,style,i,imageData.width,imageData.height,data);
+            data[i]=faceColor.r;
+            data[i+1]=faceColor.g;
+            data[i+2]=faceColor.b;
+        }
+    }
+    ctx.putImageData(imageData,0,0);
+    requestAnimationFrame(draw);
+}
+function transformToFace(r,g,b,style,i,width,height,data){
+    let faceColor={r:255,g:255,b:255};
+    let x=i%width,y=Math.floor(i/width);
+    if(style==='mystical'){
+        faceColor.r=(r+Math.random()*255)%255;
+        faceColor.g=(g+Math.random()*255)%255;
+        faceColor.b=(b+Math.random()*255)%255;
+    }else if(style==='hermetic'){
+        faceColor.r=Math.sin(x*y/10000)*255;
+        faceColor.g=Math.cos(x*y/10000)*255;
+        faceColor.b=Math.sin((x+y)/10000)*255;
+    }else if(style==='trippy'){
+        faceColor.r=(r+Math.sin(i/100)*255)%255;
+        faceColor.g=(g+Math.cos(i/100)*255)%255;
+        faceColor.b=(b+Math.tan(i/100)*255)%255;
+    }else if(style==='warpedEdges'){
+        faceColor.r=(r+Math.sin(x/20)*255)%255;
+        faceColor.g=(g+Math.cos(y/20)*255)%255;
+        faceColor.b=(b+Math.tan(x*y/2000)*255)%255;
+    }else if(style==='trailedLines'){
+        let lineLength=10;
+        faceColor.r=(r+Math.sin(x/lineLength)*255)%255;
+        faceColor.g=(g+Math.cos(y/lineLength)*255)%255;
+        faceColor.b=(b+Math.sin((x+y)/lineLength)*255)%255;
+    }else if(style==='spaceBetween'){
+        faceColor.r=(r+Math.sin(x*10)*255)%255;
+        faceColor.g=(g+Math.sin(y*10)*255)%255;
+        faceColor.b=(b+Math.sin((x+y)*10)*255)%255;
+    }else if(style==='mirroredPrism'){
+        let prismX=Math.abs(width/2-x),prismY=Math.abs(height/2-y);
+        faceColor.r=(r+Math.sin(prismX/10)*255)%255;
+        faceColor.g=(g+Math.cos(prismY/10)*255)%255;
+        faceColor.b=(b+Math.tan(prismX*prismY/10000)*255)%255;
+    }else if(style==='fractalMirror'){
+        let scaleFactor=0.05;
+        let fractalX=Math.floor(x*scaleFactor)%width;
+        let fractalY=Math.floor(y*scaleFactor)%height;
+        let fractalIdx=(fractalY*width+fractalX)*4;
+        faceColor.r=(r+data[fractalIdx])%255;
+        faceColor.g=(g+data[fractalIdx+1])%255;
+        faceColor.b=(b+data[fractalIdx+2])%255;
+    }else if(style==='kaleidoscope'){
+        let angle=Math.PI/6;
+        let kaleidoX=Math.floor(x*Math.cos(angle)-y*Math.sin(angle))%width;
+        let kaleidoY=Math.floor(x*Math.sin(angle)+y*Math.cos(angle))%height;
+        let kaleidoIdx=(kaleidoY*width+kaleidoX)*4;
+        faceColor.r=(r+data[kaleidoIdx])%255;
+        faceColor.g=(g+data[kaleidoIdx+1])%255;
+        faceColor.b=(b+data[kaleidoIdx+2])%255;
+    }else if(style==='flowingEnergy'){
+        let energyFactor=0.1;
+        let energyX=Math.floor(x+Math.sin(y*energyFactor)*10)%width;
+        let energyY=Math.floor(y+Math.cos(x*energyFactor)*10)%height;
+        let energyIdx=(energyY*width+energyX)*4;
+        faceColor.r=(r+data[energyIdx])%255;
+        faceColor.g=(g+data[energyIdx+1])%255;
+        faceColor.b=(b+data[energyIdx+2])%255;
+    }
+    return faceColor;
+}
+patternSensitivitySlider.addEventListener('input',draw);
+styleSelect.addEventListener('change',draw);
+toggleControlsButton.addEventListener('click',()=>{controls.style.display=controls.style.display==='none'?'flex':'none';});
+fullscreenButton.addEventListener('click',()=>{if(!document.fullscreenElement){document.documentElement.requestFullscreen();}else{if(document.exitFullscreen){document.exitFullscreen();}}});
+saveButton.addEventListener('click',()=>{canvas.toBlob((blob)=>{const link=document.createElement('a');const uniqueFilename=`transcendental_vision_${Date.now()}.png`;link.download=uniqueFilename;link.href=URL.createObjectURL(blob);link.click();},'image/png');});
+video.addEventListener('play',draw);
+window.addEventListener('resize',()=>{canvas.width=window.innerWidth;canvas.height=window.innerHeight;});
+/*©2024 Jamison Banks. All Rights Reserved.*/
+</script>
+</BODY>
+          </HTML>
