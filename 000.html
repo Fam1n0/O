@@ -1,0 +1,497 @@
+<HTML>
+<head>
+  <META charset="UTF-8">
+  <META name="viewport" content="width=device-width, initial-scale=1.0">
+  <TITLE>Enhanced Vision</TITLE>
+  <STYLE>
+    body, html { margin: 0; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    #controls { position: absolute; top: 10px; left: 10px; z-index: 10; display: none; flex-direction: column; gap: 5px; background-color: rgba(0,0,0,0.8); padding: 5px; border-radius: 10px; max-height: 90vh; overflow-y: auto; color: white; font-size: 14px; }
+    #button-container { position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; gap: 5px; flex-wrap: wrap; }
+    button, input[type="file"] { padding: 5px 10px; background: #333; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+    button:hover, input[type="file"]:hover { background: #555; }
+    .slider-container { display: flex; flex-direction: column; gap: 2px; }
+    .slider-label { color: white; }
+    .layer-title { margin: 0; font-size: 16px; }
+  </STYLE>
+</head>
+<body>
+  <div id="button-container">
+    <button id="toggle-controls">Controls</button>
+    <button id="fullscreen">Fullscreen</button>
+    <input type="file" id="upload" accept="image/*">
+    <button id="save">Save</button>
+    <button id="positive-feedback">Good</button>
+    <button id="negative-feedback">Bad</button>
+  </div>
+  <div id="controls">
+    <div class="slider-container">
+      <label class="slider-label" for="overallTexture">Texture</label>
+      <input type="range" id="overallTexture" min="0" max="2" step="0.01" value="1">
+    </div>
+    <div class="slider-container">
+      <label class="slider-label" for="overallClarity">Clarity</label>
+      <input type="range" id="overallClarity" min="0" max="2" step="0.01" value="1">
+    </div>
+    <div class="slider-container">
+      <label class="slider-label" for="overallVibrance">Vibrance</label>
+      <input type="range" id="overallVibrance" min="0" max="2" step="0.01" value="1">
+    </div>
+    <div class="slider-container">
+      <label class="slider-label" for="overallHue">Hue</label>
+      <input type="range" id="overallHue" min="0" max="360" step="1" value="0">
+    </div>
+    <div class="slider-container">
+      <label class="slider-label" for="intensity">Intensity</label>
+      <input type="range" id="intensity" min="0" max="0.1" step="0.01" value="0.02">
+    </div>
+    <div class="slider-container">
+      <label class="slider-label" for="frequency">Frequency</label>
+      <input type="range" id="frequency" min="10" max="50" step="1" value="20">
+    </div>
+    <div class="slider-container">
+      <h3 class="layer-title">Red Layer</h3>
+      <label class="slider-label" for="rAmplitude">Amplitude</label>
+      <input type="range" id="rAmplitude" min="0" max="0.1" step="0.01" value="0.03">
+      <label class="slider-label" for="rSpeed">Speed</label>
+      <input type="range" id="rSpeed" min="0" max="10" step="0.1" value="3.0">
+      <label class="slider-label" for="rDirection">Direction</label>
+      <input type="range" id="rDirection" min="0" max="360" step="1" value="0">
+      <label class="slider-label" for="rPhase">Phase</label>
+      <input type="range" id="rPhase" min="0" max="6.28" step="0.01" value="0">
+      <label class="slider-label" for="rHue">Hue</label>
+      <input type="range" id="rHue" min="0" max="360" step="1" value="0">
+      <label class="slider-label" for="rVibrance">Vibrance</label>
+      <input type="range" id="rVibrance" min="0" max="2" step="0.01" value="1">
+      <label class="slider-label" for="rIntensity">Intensity</label>
+      <input type="range" id="rIntensity" min="0" max="2" step="0.01" value="1">
+      <label class="slider-label" for="rLight">Light</label>
+      <input type="range" id="rLight" min="0" max="2" step="0.01" value="1">
+    </div>
+    <div class="slider-container">
+      <h3 class="layer-title">Green Layer</h3>
+      <label class="slider-label" for="gAmplitude">Amplitude</label>
+      <input type="range" id="gAmplitude" min="0" max="0.1" step="0.01" value="0.06">
+      <label class="slider-label" for="gSpeed">Speed</label>
+      <input type="range" id="gSpeed" min="0" max="10" step="0.1" value="6.0">
+      <label class="slider-label" for="gDirection">Direction</label>
+      <input type="range" id="gDirection" min="0" max="360" step="1" value="120">
+      <label class="slider-label" for="gPhase">Phase</label>
+      <input type="range" id="gPhase" min="0" max="6.28" step="0.01" value="1.57">
+      <label class="slider-label" for="gHue">Hue</label>
+      <input type="range" id="gHue" min="0" max="360" step="1" value="120">
+      <label class="slider-label" for="gVibrance">Vibrance</label>
+      <input type="range" id="gVibrance" min="0" max="2" step="0.01" value="1">
+      <label class="slider-label" for="gIntensity">Intensity</label>
+      <input type="range" id="gIntensity" min="0" max="2" step="0.01" value="1">
+      <label class="slider-label" for="gLight">Light</label>
+      <input type="range" id="gLight" min="0" max="2" step="0.01" value="1">
+    </div>
+    <div class="slider-container">
+      <h3 class="layer-title">Blue Layer</h3>
+      <label class="slider-label" for="bAmplitude">Amplitude</label>
+      <input type="range" id="bAmplitude" min="0" max="0.1" step="0.01" value="0.09">
+      <label class="slider-label" for="bSpeed">Speed</label>
+      <input type="range" id="bSpeed" min="0" max="10" step="0.1" value="9.0">
+      <label class="slider-label" for="bDirection">Direction</label>
+      <input type="range" id="bDirection" min="0" max="360" step="1" value="240">
+      <label class="slider-label" for="bPhase">Phase</label>
+      <input type="range" id="bPhase" min="0" max="6.28" step="0.01" value="3.14">
+      <label class="slider-label" for="bHue">Hue</label>
+      <input type="range" id="bHue" min="0" max="360" step="1" value="240">
+      <label class="slider-label" for="bVibrance">Vibrance</label>
+      <input type="range" id="bVibrance" min="0" max="2" step="0.01" value="1">
+      <label class="slider-label" for="bIntensity">Intensity</label>
+      <input type="range" id="bIntensity" min="0" max="2" step="0.01" value="1">
+      <label class="slider-label" for="bLight">Light</label>
+      <input type="range" id="bLight" min="0" max="2" step="0.01" value="1">
+    </div>
+    <div class="slider-container">
+      <h3 class="layer-title">Effects</h3>
+      <label class="slider-label" for="edgeDetection">Edge</label>
+      <input type="range" id="edgeDetection" min="0" max="1" step="0.01" value="0">
+      <label class="slider-label" for="brightness">Brightness</label>
+      <input type="range" id="brightness" min="0" max="2" step="0.01" value="1">
+      <label class="slider-label" for="contrast">Contrast</label>
+      <input type="range" id="contrast" min="0" max="2" step="0.01" value="1">
+      <label class="slider-label" for="invertColors">Invert</label>
+      <input type="checkbox" id="invertColors">
+    </div>
+  </div>
+  <canvas id="canvas"></canvas>
+  <SCRIPT src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></SCRIPT>
+  <SCRIPT>
+    const canvas = document.getElementById('canvas');
+    const upload = document.getElementById('upload');
+    const saveButton = document.getElementById('save');
+    const fullscreenButton = document.getElementById('fullscreen');
+    const toggleControlsButton = document.getElementById('toggle-controls');
+    const controls = document.getElementById('controls');
+    const buttonContainer = document.getElementById('button-container');
+    const positiveFeedbackButton = document.getElementById('positive-feedback');
+    const negativeFeedbackButton = document.getElementById('negative-feedback');
+
+    const overallTextureSlider = document.getElementById('overallTexture');
+    const overallClaritySlider = document.getElementById('overallClarity');
+    const overallVibranceSlider = document.getElementById('overallVibrance');
+    const overallHueSlider = document.getElementById('overallHue');
+    const intensitySlider = document.getElementById('intensity');
+    const frequencySlider = document.getElementById('frequency');
+    const rAmplitudeSlider = document.getElementById('rAmplitude');
+    const rSpeedSlider = document.getElementById('rSpeed');
+    const rDirectionSlider = document.getElementById('rDirection');
+    const rPhaseSlider = document.getElementById('rPhase');
+    const rHueSlider = document.getElementById('rHue');
+    const rVibranceSlider = document.getElementById('rVibrance');
+    const rIntensitySlider = document.getElementById('rIntensity');
+    const rLightSlider = document.getElementById('rLight');
+    const gAmplitudeSlider = document.getElementById('gAmplitude');
+    const gSpeedSlider = document.getElementById('gSpeed');
+    const gDirectionSlider = document.getElementById('gDirection');
+    const gPhaseSlider = document.getElementById('gPhase');
+    const gHueSlider = document.getElementById('gHue');
+    const gVibranceSlider = document.getElementById('gVibrance');
+    const gIntensitySlider = document.getElementById('gIntensity');
+    const gLightSlider = document.getElementById('gLight');
+    const bAmplitudeSlider = document.getElementById('bAmplitude');
+    const bSpeedSlider = document.getElementById('bSpeed');
+    const bDirectionSlider = document.getElementById('bDirection');
+    const bPhaseSlider = document.getElementById('bPhase');
+    const bHueSlider = document.getElementById('bHue');
+    const bVibranceSlider = document.getElementById('bVibrance');
+    const bIntensitySlider = document.getElementById('bIntensity');
+    const bLightSlider = document.getElementById('bLight');
+    const edgeDetectionSlider = document.getElementById('edgeDetection');
+    const brightnessSlider = document.getElementById('brightness');
+    const contrastSlider = document.getElementById('contrast');
+    const invertColorsCheckbox = document.getElementById('invertColors');
+
+    const renderer = new THREE.WebGLRenderer({ canvas, preserveDrawingBuffer: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const geometry = new THREE.PlaneGeometry(2, 2);
+
+    const fragmentShader = `
+      uniform sampler2D u_image;
+      uniform float u_intensity, u_frequency, u_overallTexture, u_overallClarity, u_overallVibrance, u_overallHue;
+      uniform float u_rAmplitude, u_rSpeed, u_rDirection, u_rPhase, u_rHue, u_rVibrance, u_rIntensity, u_rLight;
+      uniform float u_gAmplitude, u_gSpeed, u_gDirection, u_gPhase, u_gHue, u_gVibrance, u_gIntensity, u_gLight;
+      uniform float u_bAmplitude, u_bSpeed, u_bDirection, u_bPhase, u_bHue, u_bVibrance, u_bIntensity, u_bLight;
+      uniform float u_edgeDetection, u_brightness, u_contrast;
+      uniform int u_invertColors;
+      varying vec2 v_uv;
+
+      vec3 rgb2hsv(vec3 c) {
+        vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+        vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+        vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+        float d = q.x - min(q.w, q.y);
+        float e = 1.0e-10;
+        return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+      }
+
+      vec3 hsv2rgb(vec3 c) {
+        vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+        vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+        return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+      }
+
+      void main() {
+        vec2 uv = v_uv;
+        float wave = sin(uv.y * u_frequency) * u_intensity;
+        uv.x += wave;
+        uv.y += wave;
+        vec4 color = texture2D(u_image, uv);
+
+        vec2 rOffset = vec2(sin(u_rDirection + u_rPhase) * u_rSpeed, cos(u_rDirection + u_rPhase) * u_rSpeed) * u_rAmplitude;
+        vec2 gOffset = vec2(sin(u_gDirection + u_gPhase) * u_gSpeed, cos(u_gDirection + u_gPhase) * u_gSpeed) * u_gAmplitude;
+        vec2 bOffset = vec2(sin(u_bDirection + u_bPhase) * u_bSpeed, cos(u_bDirection + u_bPhase) * u_bSpeed) * u_bAmplitude;
+
+        vec4 rColor = texture2D(u_image, uv + rOffset);
+        vec4 gColor = texture2D(u_image, uv + gOffset);
+        vec4 bColor = texture2D(u_image, uv + bOffset);
+
+        vec3 rHsv = rgb2hsv(rColor.rgb);
+        rHsv.x = mod(rHsv.x + u_rHue / 360.0, 1.0);
+        rHsv.y = clamp(rHsv.y * u_rVibrance, 0.0, 1.0);
+        rHsv.z = clamp(rHsv.z * u_rIntensity, 0.0, 1.0) * u_rLight;
+
+        vec3 gHsv = rgb2hsv(gColor.rgb);
+        gHsv.x = mod(gHsv.x + u_gHue / 360.0, 1.0);
+        gHsv.y = clamp(gHsv.y * u_gVibrance, 0.0, 1.0);
+        gHsv.z = clamp(gHsv.z * u_gIntensity, 0.0, 1.0) * u_gLight;
+
+        vec3 bHsv = rgb2hsv(bColor.rgb);
+        bHsv.x = mod(bHsv.x + u_bHue / 360.0, 1.0);
+        bHsv.y = clamp(bHsv.y * u_bVibrance, 0.0, 1.0);
+        bHsv.z = clamp(bHsv.z * u_bIntensity, 0.0, 1.0) * u_bLight;
+
+        color.r = hsv2rgb(rHsv).r;
+        color.g = hsv2rgb(gHsv).g;
+        color.b = hsv2rgb(bHsv).b;
+
+        vec3 overallHsv = rgb2hsv(color.rgb);
+        overallHsv.x = mod(overallHsv.x + u_overallHue / 360.0, 1.0);
+        overallHsv.y = clamp(overallHsv.y * u_overallVibrance, 0.0, 1.0);
+        overallHsv.z = clamp(overallHsv.z * u_overallClarity, 0.0, 1.0) * u_overallTexture;
+        color.rgb = hsv2rgb(overallHsv);
+
+        if (u_edgeDetection > 0.0) {
+          vec3 edge = smoothstep(0.1, 0.9, abs(vec3(dFdx(color.r), dFdx(color.g), dFdx(color.b))));
+          color.rgb = mix(color.rgb, edge, u_edgeDetection);
+        }
+        color.rgb = pow(color.rgb, vec3(u_brightness));
+        color.rgb = mix(vec3(0.5), mix(vec3(0.0), color.rgb, u_contrast), u_contrast + 1.0);
+        if (u_invertColors == 1) {
+          color.rgb = 1.0 - color.rgb;
+        }
+        gl_FragColor = color;
+      }`;
+
+    const vertexShader = `varying vec2 v_uv;void main() {v_uv = uv;gl_Position = vec4(position, 1.0);}`;
+
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        u_image: { type: 't', value: null },
+        u_intensity: { type: 'f', value: 0.02 },
+        u_frequency: { type: 'f', value: 20.0 },
+        u_overallTexture: { type: 'f', value: 1.0 },
+        u_overallClarity: { type: 'f', value: 1.0 },
+        u_overallVibrance: { type: 'f', value: 1.0 },
+        u_overallHue: { type: 'f', value: 0.0 },
+        u_rAmplitude: { type: 'f', value: 0.03 },
+        u_rSpeed: { type: 'f', value: 3.0 },
+        u_rDirection: { type: 'f', value: 0.0 },
+        u_rPhase: { type: 'f', value: 0.0 },
+        u_rHue: { type: 'f', value: 0.0 },
+        u_rVibrance: { type: 'f', value: 1.0 },
+        u_rIntensity: { type: 'f', value: 1.0 },
+        u_rLight: { type: 'f', value: 1.0 },
+        u_gAmplitude: { type: 'f', value: 0.06 },
+        u_gSpeed: { type: 'f', value: 6.0 },
+        u_gDirection: { type: 'f', value: 120.0 },
+        u_gPhase: { type: 'f', value: 1.57 },
+        u_gHue: { type: 'f', value: 120.0 },
+        u_gVibrance: { type: 'f', value: 1.0 },
+        u_gIntensity: { type: 'f', value: 1.0 },
+        u_gLight: { type: 'f', value: 1.0 },
+        u_bAmplitude: { type: 'f', value: 0.09 },
+        u_bSpeed: { type: 'f', value: 9.0 },
+        u_bDirection: { type: 'f', value: 240.0 },
+        u_bPhase: { type: 'f', value: 3.14 },
+        u_bHue: { type: 'f', value: 240.0 },
+        u_bVibrance: { type: 'f', value: 1.0 },
+        u_bIntensity: { type: 'f', value: 1.0 },
+        u_bLight: { type: 'f', value: 1.0 },
+        u_edgeDetection: { type: 'f', value: 0.0 },
+        u_brightness: { type: 'f', value: 1.0 },
+        u_contrast: { type: 'f', value: 1.0 },
+        u_invertColors: { type: 'i', value: 0 }
+      },
+      vertexShader,
+      fragmentShader
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const texture = new THREE.Texture(img);
+            texture.needsUpdate = true;
+            material.uniforms.u_image.value = texture;
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.render(scene, camera);
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function getState() {
+      return [
+        parseFloat(overallTextureSlider.value),
+        parseFloat(overallClaritySlider.value),
+        parseFloat(overallVibranceSlider.value),
+        parseFloat(overallHueSlider.value),
+        parseFloat(intensitySlider.value),
+        parseFloat(frequencySlider.value),
+        parseFloat(rAmplitudeSlider.value),
+        parseFloat(rSpeedSlider.value),
+        parseFloat(rDirectionSlider.value),
+        parseFloat(rPhaseSlider.value),
+        parseFloat(rHueSlider.value),
+        parseFloat(rVibranceSlider.value),
+        parseFloat(rIntensitySlider.value),
+        parseFloat(rLightSlider.value),
+        parseFloat(gAmplitudeSlider.value),
+        parseFloat(gSpeedSlider.value),
+        parseFloat(gDirectionSlider.value),
+        parseFloat(gPhaseSlider.value),
+        parseFloat(gHueSlider.value),
+        parseFloat(gVibranceSlider.value),
+        parseFloat(gIntensitySlider.value),
+        parseFloat(gLightSlider.value),
+        parseFloat(bAmplitudeSlider.value),
+        parseFloat(bSpeedSlider.value),
+        parseFloat(bDirectionSlider.value),
+        parseFloat(bPhaseSlider.value),
+        parseFloat(bHueSlider.value),
+        parseFloat(bVibranceSlider.value),
+        parseFloat(bIntensitySlider.value),
+        parseFloat(bLightSlider.value),
+        parseFloat(edgeDetectionSlider.value),
+        parseFloat(brightnessSlider.value),
+        parseFloat(contrastSlider.value),
+        invertColorsCheckbox.checked ? 1 : 0
+      ];
+    }
+
+    function updateUniforms() {
+      const state = getState();
+      material.uniforms.u_intensity.value = state[4];
+      material.uniforms.u_frequency.value = state[5];
+      material.uniforms.u_overallTexture.value = state[0];
+      material.uniforms.u_overallClarity.value = state[1];
+      material.uniforms.u_overallVibrance.value = state[2];
+      material.uniforms.u_overallHue.value = state[3];
+      material.uniforms.u_rAmplitude.value = state[6];
+      material.uniforms.u_rSpeed.value = state[7];
+      material.uniforms.u_rDirection.value = state[8];
+      material.uniforms.u_rPhase.value = state[9];
+      material.uniforms.u_rHue.value = state[10];
+      material.uniforms.u_rVibrance.value = state[11];
+      material.uniforms.u_rIntensity.value = state[12];
+      material.uniforms.u_rLight.value = state[13];
+      material.uniforms.u_gAmplitude.value = state[14];
+      material.uniforms.u_gSpeed.value = state[15];
+      material.uniforms.u_gDirection.value = state[16];
+      material.uniforms.u_gPhase.value = state[17];
+      material.uniforms.u_gHue.value = state[18];
+      material.uniforms.u_gVibrance.value = state[19];
+      material.uniforms.u_gIntensity.value = state[20];
+      material.uniforms.u_gLight.value = state[21];
+      material.uniforms.u_bAmplitude.value = state[22];
+      material.uniforms.u_bSpeed.value = state[23];
+      material.uniforms.u_bDirection.value = state[24];
+      material.uniforms.u_bPhase.value = state[25];
+      material.uniforms.u_bHue.value = state[26];
+      material.uniforms.u_bVibrance.value = state[27];
+      material.uniforms.u_bIntensity.value = state[28];
+      material.uniforms.u_bLight.value = state[29];
+      material.uniforms.u_edgeDetection.value = state[30];
+      material.uniforms.u_brightness.value = state[31];
+      material.uniforms.u_contrast.value = state[32];
+      material.uniforms.u_invertColors.value = state[33];
+      renderer.render(scene, camera);
+    }
+
+    [
+      overallTextureSlider, overallClaritySlider, overallVibranceSlider, overallHueSlider,
+      intensitySlider, frequencySlider, rAmplitudeSlider, rSpeedSlider, rDirectionSlider,
+      rPhaseSlider, rHueSlider, rVibranceSlider, rIntensitySlider, rLightSlider,
+      gAmplitudeSlider, gSpeedSlider, gDirectionSlider, gPhaseSlider, gHueSlider,
+      gVibranceSlider, gIntensitySlider, gLightSlider, bAmplitudeSlider, bSpeedSlider,
+      bDirectionSlider, bPhaseSlider, bHueSlider, bVibranceSlider, bIntensitySlider,
+      bLightSlider, edgeDetectionSlider, brightnessSlider, contrastSlider, invertColorsCheckbox
+    ].forEach(slider => {
+      slider.addEventListener('input', updateUniforms);
+    });
+
+    saveButton.addEventListener('click', () => {
+      renderer.setSize(window.innerWidth * 2, window.innerHeight * 2);
+      renderer.render(scene, camera);
+      canvas.toBlob((blob) => {
+        const link = document.createElement('a');
+        const uniqueFilename = `enhanced_vision_${Date.now()}.png`;
+        link.download = uniqueFilename;
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.render(scene, camera);
+      }, 'image/png');
+    });
+
+    toggleControlsButton.addEventListener('click', () => {
+      controls.style.display = controls.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    fullscreenButton.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    });
+
+    canvas.addEventListener('click', () => {
+      const display = buttonContainer.style.display === 'none' ? 'flex' : 'none';
+      buttonContainer.style.display = display;
+    });
+
+    function handleOrientation(event) {
+      const gamma = event.gamma;
+      const beta = event.beta;
+      material.uniforms.u_rDirection.value = (gamma + 180) % 360;
+      material.uniforms.u_gDirection.value = (beta + 180) % 360;
+      material.uniforms.u_bDirection.value = (gamma + beta + 360) % 360;
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('deviceorientation', handleOrientation);
+    renderer.render(scene, camera);
+
+    let learningRate = 0.1;
+    let rewardDecay = 0.9;
+    let epsilon = 0.2; // Exploration rate
+    let qTable = {};
+
+    function chooseAction(state) {
+      if (Math.random() < epsilon) {
+        return Math.floor(Math.random() * 34); // Random action (exploration)
+      } else {
+        return qTable[state] ? qTable[state].indexOf(Math.max(...qTable[state])) : Math.floor(Math.random() * 34); // Best known action (exploitation)
+      }
+    }
+
+    function learn(state, action, reward, nextState) {
+      if (!qTable[state]) qTable[state] = new Array(34).fill(0);
+      if (!qTable[nextState]) qTable[nextState] = new Array(34).fill(0);
+
+      const predict = qTable[state][action];
+      const target = reward + rewardDecay * Math.max(...qTable[nextState]);
+      qTable[state][action] = predict + learningRate * (target - predict);
+    }
+
+    function getReward(feedback) {
+      return feedback === 'positive' ? 1 : -1;
+    }
+
+    positiveFeedbackButton.addEventListener('click', () => {
+      const state = getState().toString();
+      const reward = getReward('positive');
+      const action = chooseAction(state);
+      const nextState = getState().toString();
+      learn(state, action, reward, nextState);
+    });
+
+    negativeFeedbackButton.addEventListener('click', () => {
+      const state = getState().toString();
+      const reward = getReward('negative');
+      const action = chooseAction(state);
+      const nextState = getState().toString();
+      learn(state, action, reward, nextState);
+    });
+  </SCRIPT>
+</body>
+</HTML>
