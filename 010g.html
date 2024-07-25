@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Grain Movement Viewer</title>
+<style>
+body,html{margin:0;overflow:hidden;background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif}
+canvas{display:block;width:100vw;height:100vh}
+#controls{position:absolute;top:10px;left:10px;z-index:10;display:flex;flex-direction:column;gap:10px;background-color:rgba(0,0,0,0.7);padding:15px;border-radius:10px;max-height:90vh;overflow-y:auto}
+.slider-container{display:flex;flex-direction:column;gap:5px}
+#button-container{position:absolute;top:10px;right:10px;z-index:10;display:flex;gap:10px}
+button{padding:10px;background:#333;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:16px;transition:background 0.3s}
+button:hover{background:#555}
+.slider-label{color:white}
+</style>
+</head>
+<body>
+<div id="button-container">
+<button id="toggle-controls">Toggle Controls</button>
+<button id="fullscreen">Fullscreen</button>
+<button id="save">Save</button>
+</div>
+<div id="controls">
+<div class="slider-container">
+<label class="slider-label" for="grainIntensity">Grain Intensity</label>
+<input type="range" id="grainIntensity" min="0.1" max="5" step="0.1" value="1">
+</div>
+<div class="slider-container">
+<label class="slider-label" for="sensitivityThreshold">Sensitivity Threshold</label>
+<input type="range" id="sensitivityThreshold" min="0" max="255" step="1" value="50">
+</div>
+<div class="slider-container">
+<label class="slider-label" for="blurRadius">Blur Radius</label>
+<input type="range" id="blurRadius" min="0" max="10" step="0.1" value="2">
+</div>
+</div>
+<canvas id="canvas"></canvas>
+<script>
+const video = document.createElement('video'),
+      canvas = document.getElementById('canvas'),
+      ctx = canvas.getContext('2d'),
+      grainIntensitySlider = document.getElementById('grainIntensity'),
+      sensitivityThresholdSlider = document.getElementById('sensitivityThreshold'),
+      blurRadiusSlider = document.getElementById('blurRadius'),
+      toggleControlsButton = document.getElementById('toggle-controls'),
+      fullscreenButton = document.getElementById('fullscreen'),
+      saveButton = document.getElementById('save'),
+      controls = document.getElementById('controls');
+
+navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+  video.srcObject = stream;
+  video.play();
+});
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let previousFrame = ctx.createImageData(canvas.width, canvas.height);
+
+function applyGaussianBlur(imageData, radius) {
+  const pixels = imageData.data;
+  const width = imageData.width;
+  const height = imageData.height;
+  const weights = getGaussianWeights(radius);
+  const side = weights.length;
+  const halfSide = Math.floor(side / 2);
+
+  const output = new Uint8ClampedArray(pixels.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0, g = 0, b = 0, a = 0;
+      for (let cy = 0; cy < side; cy++) {
+        for (let cx = 0; cx < side; cx++) {
+          const scy = y + cy - halfSide;
+          const scx = x + cx - halfSide;
+          if (scy >= 0 && scy < height && scx >= 0 && scx < width) {
+            const offset = (scy * width + scx) * 4;
+            const weight = weights[cy][cx];
+            r += pixels[offset] * weight;
+            g += pixels[offset + 1] * weight;
+            b += pixels[offset + 2] * weight;
+            a += pixels[offset + 3] * weight;
+          }
+        }
+      }
+      const destOffset = (y * width + x) * 4;
+      output[destOffset] = r;
+      output[destOffset + 1] = g;
+      output[destOffset + 2] = b;
+      output[destOffset + 3] = a;
+    }
+  }
+  imageData.data.set(output);
+}
+
+function getGaussianWeights(radius) {
+  const sigma = radius / 3;
+  const side = 2 * radius + 1;
+  const weights = [];
+  let sum = 0;
+  for (let y = 0; y < side; y++) {
+    weights[y] = [];
+    for (let x = 0; x < side; x++) {
+      const dist = Math.sqrt((x - radius) ** 2 + (y - radius) ** 2);
+      weights[y][x] = Math.exp(-dist ** 2 / (2 * sigma ** 2)) / (2 * Math.PI * sigma ** 2);
+      sum += weights[y][x];
+    }
+  }
+  for (let y = 0; y < side; y++) {
+    for (let x = 0; x < side; x++) {
+      weights[y][x] /= sum;
+    }
+  }
+  return weights;
+}
+
+function draw() {
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  let currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const blurRadius = parseFloat(blurRadiusSlider.value);
+  if (blurRadius > 0) {
+    applyGaussianBlur(currentFrame, blurRadius);
+  }
+  let intensity = parseFloat(grainIntensitySlider.value);
+  let threshold = parseInt(sensitivityThresholdSlider.value);
+
+  for (let i = 0; i < currentFrame.data.length; i += 4) {
+    let diff = Math.abs(currentFrame.data[i] - previousFrame.data[i]) +
+               Math.abs(currentFrame.data[i + 1] - previousFrame.data[i + 1]) +
+               Math.abs(currentFrame.data[i + 2] - previousFrame.data[i + 2]);
+
+    if (diff > threshold) {
+      currentFrame.data[i] = Math.min(255, currentFrame.data[i] + intensity * diff);
+      currentFrame.data[i + 1] = Math.min(255, currentFrame.data[i + 1] + intensity * diff);
+      currentFrame.data[i + 2] = Math.min(255, currentFrame.data[i + 2] + intensity * diff);
+    } else {
+      currentFrame.data[i] = Math.max(0, currentFrame.data[i] - intensity * diff);
+      currentFrame.data[i + 1] = Math.max(0, currentFrame.data[i + 1] - intensity * diff);
+      currentFrame.data[i + 2] = Math.max(0, currentFrame.data[i + 2] - intensity * diff);
+    }
+  }
+
+  ctx.putImageData(currentFrame, 0, 0);
+  previousFrame = currentFrame;
+
+  requestAnimationFrame(draw);
+}
+
+grainIntensitySlider.addEventListener('input', draw);
+sensitivityThresholdSlider.addEventListener('input', draw);
+blurRadiusSlider.addEventListener('input', draw);
+toggleControlsButton.addEventListener('click', () => {
+  controls.style.display = controls.style.display === 'none' ? 'flex' : 'none';
+});
+fullscreenButton.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
+});
+saveButton.addEventListener('click', () => {
+  canvas.toBlob((blob) => {
+    const link = document.createElement('a');
+    const uniqueFilename = `grain_viewer_${Date.now()}.png`;
+    link.download = uniqueFilename;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+  }, 'image/png');
+});
+video.addEventListener('play', draw);
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+/*©2024 Grain Movement Viewer. All Rights Reserved.*/
+</script>
+</body>
+</html>
