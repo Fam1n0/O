@@ -30,7 +30,7 @@ button:hover{background:#555}
 <select id="style">
 <option value="mystical">Mystical</option>
 <option value="hermetic">Hermetic</option>
-<option value="trippy">Trippy</option>
+<option value="dreamlike">Dreamlike</option>
 <option value="warpedEdges">Warped Edges</option>
 <option value="trailedLines">Trailed Lines</option>
 <option value="spaceBetween">The Space Between</option>
@@ -76,7 +76,7 @@ function transformToFace(r,g,b,style,i,width,height,data){
         faceColor.r=Math.sin(x*y/10000)*255;
         faceColor.g=Math.cos(x*y/10000)*255;
         faceColor.b=Math.sin((x+y)/10000)*255;
-    }else if(style==='trippy'){
+    }else if(style==='dreamlike'){
         faceColor.r=(r+Math.sin(i/100)*255)%255;
         faceColor.g=(g+Math.cos(i/100)*255)%255;
         faceColor.b=(b+Math.tan(i/100)*255)%255;
@@ -135,4 +135,4 @@ window.addEventListener('resize',()=>{canvas.width=window.innerWidth;canvas.heig
 /*©2024 Jamison Banks. All Rights Reserved.*/
 </script>
 </BODY>
-          </HTML>
+</HTML>
