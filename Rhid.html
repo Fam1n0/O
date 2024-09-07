@@ -1,0 +1,149 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RHID8</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: black;
+            overflow: hidden;
+        }
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #fullscreenButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px 15px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            display: none; /* Initially hidden */
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+<video id="video" autoplay></video>
+<canvas id="canvas"></canvas>
+<button id="fullscreenButton">Toggle Fullscreen</button>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    let previousFrame = null;
+    let noiseThreshold = 10;  // Sensitivity to capture noise/motion
+
+    // Access the rear camera
+    navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } }
+    })
+    .then(stream => {
+        video.srcObject = stream;
+        video.play();
+    })
+    .catch(err => {
+        console.error("Error accessing the rear camera: ", err);
+    });
+
+    // Set up canvas size based on the video size
+    video.addEventListener('loadedmetadata', () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+    });
+
+    // Function to track and show only noise particles
+    function trackNoiseParticles(currentFrame, previousFrame) {
+        const width = canvas.width;
+        const height = canvas.height;
+        const noiseData = context.createImageData(width, height);
+        const noisePixels = noiseData.data;
+
+        for (let i = 0; i < currentFrame.data.length; i += 4) {
+            const rDiff = Math.abs(currentFrame.data[i] - previousFrame.data[i]);
+            const gDiff = Math.abs(currentFrame.data[i + 1] - previousFrame.data[i + 1]);
+            const bDiff = Math.abs(currentFrame.data[i + 2] - previousFrame.data[i + 2]);
+
+            const motionMagnitude = rDiff + gDiff + bDiff;
+
+            // Track small pixel movements (camera noise) as particles and discard the rest
+            if (motionMagnitude > noiseThreshold && motionMagnitude < 100) {
+                // Highlight noise particle in white, discard background
+                noisePixels[i] = 255;     // Red
+                noisePixels[i + 1] = 255; // Green
+                noisePixels[i + 2] = 255; // Blue
+                noisePixels[i + 3] = 255; // Alpha
+            } else {
+                // Set non-noise pixels to transparent (hide them)
+                noisePixels[i] = 0;
+                noisePixels[i + 1] = 0;
+                noisePixels[i + 2] = 0;
+                noisePixels[i + 3] = 0;
+            }
+        }
+
+        return noiseData;
+    }
+
+    // Function to toggle fullscreen mode
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
+    // Event listener to toggle fullscreen on button click
+    fullscreenButton.addEventListener('click', toggleFullscreen);
+
+    // Function to fade the fullscreen button and show on tap
+    function handleUserActivity() {
+        fullscreenButton.style.display = 'block';
+        clearTimeout(fullscreenButton._timeout);
+
+        fullscreenButton._timeout = setTimeout(() => {
+            fullscreenButton.style.display = 'none';
+        }, 3000); // Hide button after 3 seconds of inactivity
+    }
+
+    // Show fullscreen button on tap anywhere on the screen
+    document.addEventListener('click', handleUserActivity);
+
+    // Capture frame every 50ms (20fps) and compare with the previous frame
+    setInterval(() => {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
+
+        if (previousFrame) {
+            const noiseData = trackNoiseParticles(currentFrame, previousFrame);
+            context.putImageData(noiseData, 0, 0);
+        }
+
+        previousFrame = currentFrame;
+
+    }, 50); // 50ms interval = 20fps
+
+</script>
+
+</body>
+</html>
