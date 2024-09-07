@@ -1,9 +1,8 @@
 
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Show RHID NOP</title>
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RHIM_PTOH.html</title> <!-- Updated page title -->
     <style>
         body, html {
             margin: 0;
@@ -85,7 +84,15 @@
         canvas.height = video.videoHeight;
     });
 
-    // Function to track and show only noise particles
+    // Function to generate a random color for each noise particle
+    function generateRandomColor() {
+        const r = Math.floor(Math.random() * 256);
+        const g = Math.floor(Math.random() * 256);
+        const b = Math.floor(Math.random() * 256);
+        return { r, g, b };
+    }
+
+    // Function to track and show expanded range of noise particles
     function trackNoiseParticles(currentFrame, previousFrame) {
         const width = canvas.width;
         const height = canvas.height;
@@ -101,10 +108,11 @@
 
             // Track small pixel movements (camera noise) as particles and discard the rest
             if (motionMagnitude > noiseThreshold && motionMagnitude < 100) {
-                // Highlight noise particle in white, discard background
-                noisePixels[i] = 255;     // Red
-                noisePixels[i + 1] = 255; // Green
-                noisePixels[i + 2] = 255; // Blue
+                // Assign random colors to noise particles for visual variation
+                const { r, g, b } = generateRandomColor();
+                noisePixels[i] = r;      // Red
+                noisePixels[i + 1] = g;  // Green
+                noisePixels[i + 2] = b;  // Blue
                 noisePixels[i + 3] = 255; // Alpha
             } else {
                 // Set non-noise pixels to black (hide them)
@@ -131,19 +139,6 @@
 
     // Event listener to toggle fullscreen on button click
     fullscreenButton.addEventListener('click', toggleFullscreen);
-
-    // Function to fade the fullscreen button and show on tap
-    function handleUserActivity() {
-        fullscreenButton.style.display = 'block';
-        clearTimeout(fullscreenButton._timeout);
-
-        fullscreenButton._timeout = setTimeout(() => {
-            fullscreenButton.style.display = 'none';
-        }, 3000); // Hide button after 3 seconds of inactivity
-    }
-
-    // Show fullscreen button on tap anywhere on the screen
-    document.addEventListener('click', handleUserActivity);
 
     // Function to generate a random filename for screenshots
     function generateRandomFilename() {
