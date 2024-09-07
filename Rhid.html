@@ -1,8 +1,9 @@
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RHID8</title>
+    <title>Show RHID NOP</title>
     <style>
         body, html {
             margin: 0;
@@ -35,6 +36,18 @@
             display: none; /* Initially hidden */
             z-index: 10;
         }
+        #screenshotButton {
+            position: absolute;
+            bottom: 10%;
+            right: 10%;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
@@ -42,12 +55,15 @@
 <video id="video" autoplay></video>
 <canvas id="canvas"></canvas>
 <button id="fullscreenButton">Toggle Fullscreen</button>
+<div id="screenshotButton"></div>
 
 <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const context = canvas.getContext('2d');
     const fullscreenButton = document.getElementById('fullscreenButton');
+    const screenshotButton = document.getElementById('screenshotButton');
+
     let previousFrame = null;
     let noiseThreshold = 10;  // Sensitivity to capture noise/motion
 
@@ -91,11 +107,11 @@
                 noisePixels[i + 2] = 255; // Blue
                 noisePixels[i + 3] = 255; // Alpha
             } else {
-                // Set non-noise pixels to transparent (hide them)
+                // Set non-noise pixels to black (hide them)
                 noisePixels[i] = 0;
                 noisePixels[i + 1] = 0;
                 noisePixels[i + 2] = 0;
-                noisePixels[i + 3] = 0;
+                noisePixels[i + 3] = 255; // Full black background
             }
         }
 
@@ -128,6 +144,40 @@
 
     // Show fullscreen button on tap anywhere on the screen
     document.addEventListener('click', handleUserActivity);
+
+    // Function to generate a random filename for screenshots
+    function generateRandomFilename() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let filename = '';
+        for (let i = 0; i < 10; i++) {
+            filename += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return filename;
+    }
+
+    // Function to take a screenshot of the canvas
+    function takeScreenshot() {
+        const screenshotCanvas = document.createElement('canvas');
+        screenshotCanvas.width = canvas.width;
+        screenshotCanvas.height = canvas.height;
+
+        const screenshotContext = screenshotCanvas.getContext('2d');
+
+        // Set a black background before copying the canvas
+        screenshotContext.fillStyle = 'black';
+        screenshotContext.fillRect(0, 0, screenshotCanvas.width, screenshotCanvas.height);
+
+        // Copy the canvas content onto the screenshot canvas
+        screenshotContext.drawImage(canvas, 0, 0);
+
+        const link = document.createElement('a');
+        link.href = screenshotCanvas.toDataURL('image/png');
+        link.download = generateRandomFilename() + '.png'; // Random file name
+        link.click();
+    }
+
+    // Event listener for the screenshot button
+    screenshotButton.addEventListener('click', takeScreenshot);
 
     // Capture frame every 50ms (20fps) and compare with the previous frame
     setInterval(() => {
