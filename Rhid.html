@@ -32,7 +32,7 @@
             cursor: pointer;
             font-size: 16px;
             border-radius: 5px;
-            display: none; /* Initially hidden */
+            display: block;
             z-index: 10;
         }
         #screenshotButton {
@@ -139,6 +139,19 @@
 
     // Event listener to toggle fullscreen on button click
     fullscreenButton.addEventListener('click', toggleFullscreen);
+
+    // Function to fade the fullscreen button and show on tap
+    function handleUserActivity() {
+        fullscreenButton.style.display = 'block';
+        clearTimeout(fullscreenButton._timeout);
+
+        fullscreenButton._timeout = setTimeout(() => {
+            fullscreenButton.style.display = 'none';
+        }, 3000); // Hide button after 3 seconds of inactivity
+    }
+
+    // Show fullscreen button on tap anywhere on the screen
+    document.addEventListener('click', handleUserActivity);
 
     // Function to generate a random filename for screenshots
     function generateRandomFilename() {
