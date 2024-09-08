@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reveal Reality Refresh Rate</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: black;
+            overflow: hidden;
+        }
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #fullscreenButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px 15px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            display: block;
+            z-index: 10;
+        }
+        #screenshotButton {
+            position: absolute;
+            bottom: 10%;
+            right: 10%;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            z-index: 10;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            z-index: 20;
+        }
+        #frameRateSlider {
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+
+<video id="video" autoplay></video>
+<canvas id="canvas"></canvas>
+<button id="fullscreenButton">Toggle Fullscreen</button>
+<div id="screenshotButton"></div>
+
+<div id="controls">
+    <label>Frame Rate: <input type="range" id="frameRateSlider" min="1" max="1000" value="50"> 
+        <span id="frameRateValue">50ms (20fps)</span>
+    </label>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    const screenshotButton = document.getElementById('screenshotButton');
+    const frameRateSlider = document.getElementById('frameRateSlider');
+    const frameRateValue = document.getElementById('frameRateValue');
+
+    let previousFrame = null;
+    let subtleMovementThreshold = 1;
+    let differenceAmplification = 10;
+    let frameInterval = 50; // Default frame rate interval in ms (20 fps)
+    let frameIntervalID = null;
+
+    navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } }
+    })
+    .then(stream => {
+        video.srcObject = stream;
+        video.play();
+    })
+    .catch(err => {
+        console.error("Error accessing the rear camera: ", err);
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+    });
+
+    function trackFrameDifferences(currentFrame, previousFrame) {
+        const width = canvas.width;
+        const height = canvas.height;
+        const noiseData = context.createImageData(width, height);
+        const noisePixels = noiseData.data;
+
+        for (let i = 0; i < currentFrame.data.length; i += 4) {
+            const rDiff = Math.abs(currentFrame.data[i] - previousFrame.data[i]) * differenceAmplification;
+            const gDiff = Math.abs(currentFrame.data[i + 1] - previousFrame.data[i + 1]) * differenceAmplification;
+            const bDiff = Math.abs(currentFrame.data[i + 2] - previousFrame.data[i + 2]) * differenceAmplification;
+
+            const motionMagnitude = rDiff + gDiff + bDiff;
+
+            if (motionMagnitude > subtleMovementThreshold) {
+                noisePixels[i] = Math.min(255, rDiff);
+                noisePixels[i + 1] = Math.min(255, gDiff);
+                noisePixels[i + 2] = Math.min(255, bDiff);
+                noisePixels[i + 3] = 255;
+            } else {
+                noisePixels[i] = 0;
+                noisePixels[i + 1] = 0;
+                noisePixels[i + 2] = 0;
+                noisePixels[i + 3] = 255;
+            }
+        }
+
+        return noiseData;
+    }
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
+    fullscreenButton.addEventListener('click', toggleFullscreen);
+
+    function handleUserActivity() {
+        fullscreenButton.style.display = 'block';
+        clearTimeout(fullscreenButton._timeout);
+
+        fullscreenButton._timeout = setTimeout(() => {
+            fullscreenButton.style.display = 'none';
+        }, 3000);
+    }
+
+    document.addEventListener('click', handleUserActivity);
+
+    function generateRandomFilename() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let filename = '';
+        for (let i = 0; i < 10; i++) {
+            filename += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return filename;
+    }
+
+    function takeScreenshot() {
+        const screenshotCanvas = document.createElement('canvas');
+        screenshotCanvas.width = canvas.width;
+        screenshotCanvas.height = canvas.height;
+
+        const screenshotContext = screenshotCanvas.getContext('2d');
+        screenshotContext.fillStyle = 'black';
+        screenshotContext.fillRect(0, 0, screenshotCanvas.width, screenshotCanvas.height);
+
+        screenshotContext.drawImage(canvas, 0, 0);
+
+        const link = document.createElement('a');
+        link.href = screenshotCanvas.toDataURL('image/png', 1.0);
+        link.download = generateRandomFilename() + '.png';
+        link.click();
+    }
+
+    screenshotButton.addEventListener('click', takeScreenshot);
+
+    function updateFrameRate() {
+        frameInterval = parseInt(frameRateSlider.value);
+        const fps = (1000 / frameInterval).toFixed(2);  // Calculate frames per second
+        frameRateValue.textContent = `${frameInterval}ms (${fps}fps)`;
+
+        // Clear the previous interval and start a new one with the updated frame rate
+        if (frameIntervalID) {
+            clearInterval(frameIntervalID);
+        }
+
+        frameIntervalID = setInterval(() => {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const currentFrame = context.getImageData(0, 0, canvas.width, canvas.height);
+
+            if (previousFrame) {
+                const noiseData = trackFrameDifferences(currentFrame, previousFrame);
+                context.putImageData(noiseData, 0, 0);
+            }
+
+            previousFrame = currentFrame;
+        }, frameInterval);
+    }
+
+    frameRateSlider.addEventListener('input', updateFrameRate);
+
+    // Start with the default frame rate
+    updateFrameRate();
+
+</script>
+
+</body>
+</html>
