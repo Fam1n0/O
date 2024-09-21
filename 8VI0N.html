@@ -1,0 +1,193 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiverse Reality Experience</title>
+<style>
+body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100vh; width: 100vw; display: flex; justify-content: center; align-items: center; font-family: Arial, sans-serif; }
+#canvasWrapper { position: relative; width: 100%; height: 100%; background-color: #000; display: flex; justify-content: center; align-items: center; }
+#originalCanvas { position: absolute; width: 100%; height: 100%; }
+#saveButton { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background-color: rgba(255, 255, 255, 0.3); border-radius: 50%; border: none; cursor: pointer; }
+#fullscreenButton {
+    position: absolute;
+    top: 50%;
+    left: calc(50% + 40px); /* Right of the circle */
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 30px solid transparent;
+    border-right: 30px solid transparent;
+    border-bottom: 60px solid rgba(0, 0, 255, 0.5); /* Blue translucent triangle */
+    cursor: pointer;
+}
+#refreshButton {
+    position: absolute;
+    top: 50%;
+    left: calc(50% - 100px); /* Left of the circle */
+    transform: translateY(-50%);
+    width: 40px;
+    height: 60px;
+    background-color: transparent;
+    border: 6px solid rgba(255, 255, 0, 0.5); /* Yellow translucent crescent */
+    border-radius: 50%;
+    border-left-color: transparent;
+    cursor: pointer;
+}
+</style>
+</head>
+<body>
+<div id="canvasWrapper">
+<video id="videoElement" autoplay playsinline style="display:none;"></video>
+<canvas id="originalCanvas"></canvas>
+<button id="saveButton"></button>
+<div id="fullscreenButton"></div>
+<div id="refreshButton"></div>
+</div>
+<script>
+const video = document.getElementById('videoElement');
+const originalCanvas = document.getElementById('originalCanvas');
+const originalCtx = originalCanvas.getContext('2d');
+originalCanvas.width = window.innerWidth;
+originalCanvas.height = window.innerHeight;
+let mode = 'fractal', fractalZoom = 1.0, timeLayers = 0, colorShiftIntensity = 0, previousFrames = [];
+const maxFrames = 10;
+
+// Use the front-facing camera
+function getCameraStream() {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+    .then(stream => {
+        video.srcObject = stream;
+        requestAnimationFrame(applyEffects);
+    })
+    .catch(err => console.error("Error accessing camera: ", err));
+}
+
+function applyEffects() {
+    originalCtx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
+    originalCtx.drawImage(video, 0, 0, originalCanvas.width, originalCanvas.height);
+    if (mode === 'fractal') { drawFractals(); }
+    else if (mode === 'warp') { applyWarp(); }
+    else if (mode === 'geometry') { revealSacredGeometry(); }
+    else if (mode === 'colorShift') { applyColorShift(); }
+    else if (mode === 'timeEcho') { applyTimeEchoes(); }
+    requestAnimationFrame(applyEffects);
+}
+
+function drawFractals() {
+    fractalZoom += 0.01;
+    let imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height), data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+        let r = data[i], g = data[i+1], b = data[i+2], zoomFactor = fractalZoom;
+        data[i] = (r * zoomFactor) % 255;
+        data[i+1] = (g * zoomFactor) % 255;
+        data[i+2] = (b * zoomFactor) % 255;
+    }
+    originalCtx.putImageData(imageData, 0, 0);
+}
+
+function applyWarp() {
+    let imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height), data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+        let offset = Math.sin(i / 10000 + performance.now() / 1000) * 10;
+        data[i] = data[(i + offset * 4) % data.length];
+        data[i+1] = data[(i + 1 + offset * 4) % data.length];
+        data[i+2] = data[(i + 2 + offset * 4) % data.length];
+    }
+    originalCtx.putImageData(imageData, 0, 0);
+}
+
+function revealSacredGeometry() {
+    originalCtx.strokeStyle = 'rgba(255,255,255,0.8)';
+    originalCtx.lineWidth = 2;
+    for (let i = 0; i < originalCanvas.width; i += 60) {
+        for (let j = 0; j < originalCanvas.height; j += 60) {
+            originalCtx.beginPath();
+            originalCtx.arc(i, j, 30, 0, Math.PI * 2);
+            originalCtx.stroke();
+            originalCtx.beginPath();
+            originalCtx.moveTo(i - 30, j);
+            originalCtx.lineTo(i + 30, j);
+            originalCtx.stroke();
+        }
+    }
+}
+
+function applyColorShift() {
+    let imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height), data = imageData.data;
+    colorShiftIntensity += 1;
+    for (let i = 0; i < data.length; i += 4) {
+        data[i] = (data[i] + colorShiftIntensity) % 255;
+        data[i+1] = (data[i+1] + colorShiftIntensity) % 255;
+        data[i+2] = (data[i+2] + colorShiftIntensity) % 255;
+    }
+    originalCtx.putImageData(imageData, 0, 0);
+}
+
+function applyTimeEchoes() {
+    let currentFrame = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
+    previousFrames.push(currentFrame);
+    previousFrames.length > maxFrames && previousFrames.shift();
+    previousFrames.forEach((frame, index) => {
+        originalCtx.globalAlpha = 0.1 + (index / previousFrames.length) * 0.8;
+        originalCtx.putImageData(frame, 0, 0);
+    });
+    originalCtx.globalAlpha = 1;
+}
+
+document.addEventListener('touchstart', handleTouchStart, false);
+document.addEventListener('touchmove', handleTouchMove, false);
+let xDown = null;
+function handleTouchStart(evt) {
+    const firstTouch = evt.touches[0];
+    xDown = firstTouch.clientX;
+}
+
+function handleTouchMove(evt) {
+    if (!xDown) return;
+    const xUp = evt.touches[0].clientX, xDiff = xDown - xUp;
+    if (Math.abs(xDiff) > 50) {
+        mode = mode === 'fractal' ? 'warp' : mode === 'warp' ? 'geometry' : mode === 'geometry' ? 'colorShift' : mode === 'colorShift' ? 'timeEcho' : 'fractal';
+        xDown = null;
+    }
+}
+
+// Generate three random letters
+function getRandomLetters() {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = '';
+    for (let i = 0; i < 3; i++) {
+        result += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    return result;
+}
+
+// Save image with unique name
+document.getElementById('saveButton').addEventListener('click', () => {
+    const link = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    const randomLetters = getRandomLetters();
+    link.href = originalCanvas.toDataURL('image/png');
+    link.download = `reality-explorer-${randomLetters}-${timestamp}.png`;
+    link.click();
+});
+
+// Toggle Fullscreen
+document.getElementById('fullscreenButton').addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+});
+
+// Refresh button
+document.getElementById('refreshButton').addEventListener('click', () => {
+    location.reload(); // Refresh the page
+});
+
+getCameraStream();
+</script>
+</body>
+</html>
