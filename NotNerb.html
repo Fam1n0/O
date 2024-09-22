@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Reality Explorer</title>
+<style>
+  /* Reset and basic styles */
+  * {
+    box-sizing: border-box;
+  }
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1a1a1a;
+    color: #fff;
+  }
+  /* Canvas and Video */
+  #canvasWrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  canvas, video {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+  }
+  /* Control Panel */
+  #controlPanel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 320px;
+    height: 100%;
+    background-color: rgba(25, 25, 25, 0.95);
+    padding: 20px;
+    overflow-y: auto;
+    z-index: 10;
+    transition: transform 0.3s ease;
+  }
+  #controlPanel.hidden {
+    transform: translateX(-100%);
+  }
+  #controlPanel h2 {
+    margin-top: 0;
+  }
+  .effect-control {
+    margin-bottom: 20px;
+  }
+  .effect-control label {
+    display: block;
+    margin: 10px 0 5px;
+  }
+  .effect-control input[type="range"], .effect-control input[type="checkbox"] {
+    width: 100%;
+  }
+  /* Buttons */
+  .button-group {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10;
+  }
+  .button-group button {
+    margin-left: 10px;
+    padding: 12px 20px;
+    background-color: #ff5722;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  .button-group button:hover {
+    background-color: #e64a19;
+  }
+  /* Fullscreen and Help Buttons */
+  #fullscreenButton, #helpButton {
+    position: absolute;
+    top: 20px;
+    padding: 12px 16px;
+    background-color: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 10;
+  }
+  #fullscreenButton {
+    right: 20px;
+  }
+  #helpButton {
+    right: 70px;
+  }
+  #fullscreenButton:hover, #helpButton:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+  /* Toggle Panel Button */
+  #togglePanelButton {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 12px 16px;
+    background-color: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 50%;
+    font-size: 20px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 11;
+  }
+  #togglePanelButton:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+  /* Help Modal */
+  #helpModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-align: center;
+  }
+  #helpModalContent {
+    background-color: #1a1a1a;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 80%;
+    max-height: 80%;
+    overflow-y: auto;
+  }
+  #helpModal h2 {
+    margin-top: 0;
+  }
+  #helpModal button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #ff5722;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    color: #fff;
+    cursor: pointer;
+  }
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    #controlPanel {
+      width: 80%;
+    }
+  }
+</style>
+</head>
+<body>
+  <div id="canvasWrapper">
+    <video id="videoElement" autoplay playsinline style="display:none;"></video>
+    <canvas id="mainCanvas"></canvas>
+    <div id="controlPanel" class="hidden">
+      <h2>Effects Control</h2>
+      <div id="effectsList">
+        <!-- Effects will be dynamically populated here -->
+      </div>
+    </div>
+    <button id="togglePanelButton">☰</button>
+    <button id="fullscreenButton">⛶</button>
+    <button id="helpButton">?</button>
+    <div class="button-group">
+      <button id="saveButton">Save Image</button>
+      <button id="recordButton">Start Recording</button>
+    </div>
+    <!-- Help Modal -->
+    <div id="helpModal">
+      <div id="helpModalContent">
+        <h2>Help</h2>
+        <div id="helpContent">
+          <!-- Help content will be dynamically populated -->
+        </div>
+        <button id="closeHelpButton">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const video = document.getElementById('videoElement');
+  const mainCanvas = document.getElementById('mainCanvas');
+  const ctx = mainCanvas.getContext('2d');
+  mainCanvas.width = window.innerWidth;
+  mainCanvas.height = window.innerHeight;
+
+  let effects = {
+    fractal: {
+      active: false,
+      intensity: 1.02,
+      description: 'Creates a zooming fractal-like effect.',
+      subEffects: {}
+    },
+    colorShift: {
+      active: false,
+      intensity: 10,
+      hue: 0,
+      saturation: 100,
+      lightness: 50,
+      description: 'Gradually shifts the colors in the video.',
+      subEffects: {
+        hue: {
+          type: 'range',
+          min: 0,
+          max: 360,
+          step: 1,
+          default: 0,
+          description: 'Adjusts the hue of the colors.'
+        },
+        saturation: {
+          type: 'range',
+          min: 0,
+          max: 100,
+          step: 1,
+          default: 100,
+          description: 'Adjusts the saturation of the colors.'
+        },
+        lightness: {
+          type: 'range',
+          min: 0,
+          max: 100,
+          step: 1,
+          default: 50,
+          description: 'Adjusts the lightness of the colors.'
+        }
+      }
+    },
+    timeEcho: {
+      active: false,
+      intensity: 10,
+      description: 'Layers previous frames over the current frame.',
+      subEffects: {}
+    },
+    edgeDetection: {
+      active: false,
+      intensity: 50,
+      description: 'Highlights the edges in the video feed.',
+      subEffects: {}
+    },
+    pixelation: {
+      active: false,
+      intensity: 10,
+      description: 'Applies a pixelation effect to the video.',
+      subEffects: {}
+    },
+    kaleidoscope: {
+      active: false,
+      intensity: 6,
+      description: 'Generates a kaleidoscope effect.',
+      subEffects: {}
+    },
+    glitch: {
+      active: false,
+      intensity: 10,
+      description: 'Simulates digital glitches and distortions.',
+      subEffects: {}
+    },
+    aura: {
+      active: false,
+      intensity: 10,
+      description: 'Adds a glowing aura around objects.',
+      subEffects: {}
+    },
+    chromaticAberration: {
+      active: false,
+      intensity: 5,
+      description: 'Separates colors to create a spectral effect.',
+      subEffects: {}
+    },
+    particles: {
+      active: false,
+      intensity: 100,
+      description: 'Overlays floating particles for a magical ambiance.',
+      subEffects: {}
+    },
+    mysticSymbols: {
+      active: false,
+      intensity: 0.5,
+      description: 'Displays subtle, animated mystical symbols over the video feed.',
+      subEffects: {}
+    }
+  };
+
+  let previousFrames = [];
+  let recording = false;
+  let mediaRecorder;
+  let recordedChunks = [];
+  let particlesArray = [];
+
+  // Initialize Camera Stream
+  async function initCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = stream;
+      startRendering();
+    } catch (err) {
+      alert("Error accessing camera: " + err.message);
+    }
+  }
+
+  // Start Rendering Loop
+  function startRendering() {
+    requestAnimationFrame(renderFrame);
+  }
+
+  // Render Frame
+  function renderFrame() {
+    ctx.drawImage(video, 0, 0, mainCanvas.width, mainCanvas.height);
+    applyEffects();
+    if (recording && mediaRecorder && mediaRecorder.state === 'recording') {
+      ctx.canvas.captureStream().getTracks().forEach(track => mediaRecorder.stream.addTrack(track));
+    }
+    requestAnimationFrame(renderFrame);
+  }
+
+  // Apply Selected Effects
+  function applyEffects() {
+    if (effects.fractal.active) drawFractals();
+    if (effects.colorShift.active) applyColorShift();
+    if (effects.timeEcho.active) applyTimeEchoes();
+    if (effects.edgeDetection.active) applyEdgeDetection();
+    if (effects.pixelation.active) applyPixelation();
+    if (effects.kaleidoscope.active) applyKaleidoscope();
+    if (effects.glitch.active) applyGlitch();
+    if (effects.aura.active) applyAura();
+    if (effects.chromaticAberration.active) applyChromaticAberration();
+    if (effects.particles.active) applyParticles();
+    if (effects.mysticSymbols.active) applyMysticSymbols();
+  }
+
+  // Effect Functions
+  function drawFractals() {
+    const scale = effects.fractal.intensity;
+    ctx.save();
+    ctx.translate(mainCanvas.width / 2, mainCanvas.height / 2);
+    ctx.scale(scale, scale);
+    ctx.translate(-mainCanvas.width / 2, -mainCanvas.height / 2);
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(mainCanvas, 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 1.0;
+  }
+
+  function applyColorShift() {
+    const imageData = ctx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
+    let data = imageData.data;
+    const shiftAmount = effects.colorShift.intensity;
+    const hue = effects.colorShift.hue;
+    const saturation = effects.colorShift.saturation;
+    const lightness = effects.colorShift.lightness;
+
+    for (let i = 0; i < data.length; i += 4) {
+      let hsl = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+      hsl[0] = (hsl[0] + hue / 360) % 1;
+      hsl[1] = saturation / 100;
+      hsl[2] = lightness / 100;
+      const rgb = hslToRgb(hsl[0], hsl[1], hsl[2]);
+      data[i] = rgb[0];
+      data[i + 1] = rgb[1];
+      data[i + 2] = rgb[2];
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  function applyTimeEchoes() {
+    const currentFrame = ctx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
+    previousFrames.push(currentFrame);
+
+    if (previousFrames.length > effects.timeEcho.intensity) {
+      previousFrames.shift();
+    }
+
+    ctx.globalAlpha = 0.1;
+    for (let i = 0; i < previousFrames.length; i++) {
+      ctx.putImageData(previousFrames[i], 0, 0);
+    }
+    ctx.globalAlpha = 1.0;
+  }
+
+  function applyEdgeDetection() {
+    const imageData = ctx.getImageData(0, 0, mainCanvas.width, mainCanvas.height);
+    const data = imageData.data;
+    const width = mainCanvas.width;
+    const height = mainCanvas.height;
+    const threshold = effects.edgeDetection.intensity;
+
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const i = (y * width + x) * 4;
+        const gx =
+          -data[((y - 1) * width + (x - 1)) * 4] - 2 * data[(y * width + (x - 1)) * 4] - data[((y + 1) * width + (x - 1)) * 4] +
+          data[((y - 1) * width + (x + 1)) * 4] + 2 * data[(y * width + (x + 1)) * 4] + data[((y + 1) * width + (x + 1)) * 4];
+        const gy =
+          -data[((y - 1) * width + (x - 1)) * 4] - 2 * data[((y - 1) * width + x) * 4] - data[((y - 1) * width + (x + 1)) * 4] +
+          data[((y + 1) * width + (x - 1)) * 4] + 2 * data[((y + 1) * width + x) * 4] + data[((y + 1) * width + (x + 1)) * 4];
+        const magnitude = Math.sqrt(gx * gx + gy * gy);
+        const color = magnitude > threshold ? 255 : 0;
+        data[i] = data[i + 1] = data[i + 2] = color;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  function applyPixelation() {
+    const pixelSize = effects.pixelation.intensity;
+    const width = mainCanvas.width;
+    const height = mainCanvas.height;
+    for (let y = 0; y < height; y += pixelSize) {
+      for (let x = 0; x < width; x += pixelSize) {
+        const imageData = ctx.getImageData(x, y, pixelSize, pixelSize);
+        const data = imageData.data;
+        let r = 0, g = 0, b = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          r += data[i];
+          g += data[i + 1];
+          b += data[i + 2];
+        }
+        r = r / (data.length / 4);
+        g = g / (data.length / 4);
+        b = b / (data.length / 4);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x, y, pixelSize, pixelSize);
+      }
+    }
+  }
+
+  function applyKaleidoscope() {
+    const width = mainCanvas.width;
+    const height = mainCanvas.height;
+    const numSlices = effects.kaleidoscope.intensity;
+    const angle = (2 * Math.PI) / numSlices;
+
+    ctx.clearRect(0, 0, width, height);
+    for (let i = 0; i < numSlices; i++) {
+      ctx.save();
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(i * angle);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, Math.max(width, height), 0, angle);
+      ctx.closePath();
+      ctx.rotate(-angle / 2);
+      ctx.clip();
+      ctx.drawImage(video, -width / 2, -height / 2, width, height);
+      ctx.restore();
+    }
+  }
+
+  function applyGlitch() {
+    const glitchIntensity = effects.glitch.intensity;
+
+    for (let i = 0; i < glitchIntensity; i++) {
+      const x = Math.random() * mainCanvas.width;
+      const y = Math.random() * mainCanvas.height;
+      const spliceWidth = mainCanvas.width - x;
+      const spliceHeight = Math.random() * 20;
+      ctx.drawImage(mainCanvas, x, y, spliceWidth, spliceHeight, x + Math.random() * 10, y + Math.random() * 10, spliceWidth, spliceHeight);
+    }
+  }
+
+  function applyAura() {
+    ctx.save();
+    ctx.filter = `blur(${effects.aura.intensity}px)`;
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(mainCanvas, 0, 0);
+    ctx.restore();
+  }
+
+  function applyChromaticAberration() {
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(mainCanvas, effects.chromaticAberration.intensity, 0);
+    ctx.drawImage(mainCanvas, -effects.chromaticAberration.intensity, 0);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function applyParticles() {
+    if (particlesArray.length < effects.particles.intensity) {
+      particlesArray.push(new Particle());
+    }
+    particlesArray.forEach((particle, index) => {
+      particle.update();
+      particle.draw();
+      if (particle.opacity <= 0) {
+        particlesArray.splice(index, 1);
+      }
+    });
+  }
+
+  function applyMysticSymbols() {
+    ctx.save();
+    ctx.globalAlpha = effects.mysticSymbols.intensity;
+    const time = performance.now() / 1000;
+    ctx.translate(mainCanvas.width / 2, mainCanvas.height / 2);
+    ctx.rotate(time % (2 * Math.PI));
+    ctx.font = '200px serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillText('✶', -100, 50);
+    ctx.restore();
+  }
+
+  // Particle Class for Particle Effect
+  class Particle {
+    constructor() {
+      this.x = Math.random() * mainCanvas.width;
+      this.y = mainCanvas.height + Math.random() * 100;
+      this.size = Math.random() * 5 + 2;
+      this.speedY = Math.random() * -1 - 0.5;
+      this.opacity = 1;
+    }
+    update() {
+      this.y += this.speedY;
+      this.opacity -= 0.005;
+    }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = this.opacity;
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Utility Functions for Color Conversion
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    if(max === min){
+        h = s = 0;
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch(max){
+            case r: h = ((g - b) / d + (g < b ? 6 : 0))/6; break;
+            case g: h = ((b - r) / d + 2)/6; break;
+            case b: h = ((r - g) / d + 4)/6; break;
+        }
+    }
+    return [h, s, l];
+  }
+
+  function hslToRgb(h, s, l){
+    let r, g, b;
+    if(s === 0){
+        r = g = b = l;
+    } else {
+        function hue2rgb(p, q, t){
+            if(t < 0) t += 1;
+            if(t > 1) t -= 1;
+            if(t < 1/6) return p + (q - p) * 6 * t;
+            if(t < 1/2) return q;
+            if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        }
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+    return [r * 255, g * 255, b * 255];
+  }
+
+  // Create Effect Controls
+  function createEffectControls() {
+    const effectsList = document.getElementById('effectsList');
+    effectsList.innerHTML = ''; // Clear existing controls
+    for (const effect in effects) {
+      const effectDiv = document.createElement('div');
+      effectDiv.classList.add('effect-control');
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = `${effect}Active`;
+      checkbox.checked = effects[effect].active;
+      checkbox.addEventListener('change', (e) => {
+        effects[effect].active = e.target.checked;
+      });
+
+      const label = document.createElement('label');
+      label.htmlFor = `${effect}Active`;
+      label.textContent = effect.charAt(0).toUpperCase() + effect.slice(1);
+
+      const range = document.createElement('input');
+      range.type = 'range';
+      range.id = `${effect}Intensity`;
+      range.min = getEffectRange(effect).min;
+      range.max = getEffectRange(effect).max;
+      range.step = getEffectRange(effect).step;
+      range.value = effects[effect].intensity;
+      range.addEventListener('input', (e) => {
+        effects[effect].intensity = parseFloat(e.target.value);
+      });
+
+      effectDiv.appendChild(checkbox);
+      effectDiv.appendChild(label);
+      effectDiv.appendChild(range);
+
+      // Sub-effects controls
+      for (const subEffect in effects[effect].subEffects) {
+        const sub = effects[effect].subEffects[subEffect];
+        const subLabel = document.createElement('label');
+        subLabel.textContent = subEffect.charAt(0).toUpperCase() + subEffect.slice(1);
+
+        if (sub.type === 'range') {
+          const subRange = document.createElement('input');
+          subRange.type = 'range';
+          subRange.min = sub.min;
+          subRange.max = sub.max;
+          subRange.step = sub.step;
+          subRange.value = sub.default;
+          subRange.addEventListener('input', (e) => {
+            effects[effect][subEffect] = parseFloat(e.target.value);
+          });
+          effectDiv.appendChild(subLabel);
+          effectDiv.appendChild(subRange);
+        } else if (sub.type === 'select') {
+          const subSelect = document.createElement('select');
+          sub.options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option;
+            opt.textContent = option.charAt(0).toUpperCase() + option.slice(1);
+            subSelect.appendChild(opt);
+          });
+          subSelect.value = sub.default;
+          subSelect.addEventListener('change', (e) => {
+            effects[effect][subEffect] = e.target.value;
+          });
+          effectDiv.appendChild(subLabel);
+          effectDiv.appendChild(subSelect);
+        }
+      }
+
+      effectsList.appendChild(effectDiv);
+    }
+  }
+
+  function getEffectRange(effect) {
+    switch (effect) {
+      case 'fractal':
+        return { min: 1.01, max: 1.2, step: 0.005 };
+      case 'colorShift':
+        return { min: 1, max: 50, step: 1 };
+      case 'timeEcho':
+        return { min: 2, max: 20, step: 1 };
+      case 'edgeDetection':
+        return { min: 0, max: 255, step: 1 };
+      case 'pixelation':
+        return { min: 2, max: 50, step: 1 };
+      case 'kaleidoscope':
+        return { min: 3, max: 12, step: 1 };
+      case 'glitch':
+        return { min: 1, max: 20, step: 1 };
+      case 'aura':
+        return { min: 1, max: 20, step: 1 };
+      case 'chromaticAberration':
+        return { min: 1, max: 10, step: 1 };
+      case 'particles':
+        return { min: 10, max: 200, step: 10 };
+      case 'mysticSymbols':
+        return { min: 0.1, max: 1.0, step: 0.1 };
+      default:
+        return { min: 0, max: 100, step: 1 };
+    }
+  }
+
+  // Save Image
+  document.getElementById('saveButton').addEventListener('click', () => {
+    const link = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const activeEffects = Object.keys(effects).filter(effect => effects[effect].active).join('_') || 'none';
+    link.href = mainCanvas.toDataURL('image/png');
+    link.download = `reality-explorer-${activeEffects}-${timestamp}.png`;
+    link.click();
+  });
+
+  // Recording Functions
+  document.getElementById('recordButton').addEventListener('click', () => {
+    if (!recording) {
+      startRecording();
+    } else {
+      stopRecording();
+    }
+  });
+
+  function startRecording() {
+    recordedChunks = [];
+    const stream = mainCanvas.captureStream(30);
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunks.push(event.data);
+      }
+    };
+    mediaRecorder.onstop = saveRecording;
+    mediaRecorder.start();
+    recording = true;
+    document.getElementById('recordButton').textContent = 'Stop Recording';
+  }
+
+  function stopRecording() {
+    mediaRecorder.stop();
+    recording = false;
+    document.getElementById('recordButton').textContent = 'Start Recording';
+  }
+
+  function saveRecording() {
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const activeEffects = Object.keys(effects).filter(effect => effects[effect].active).join('_') || 'none';
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `reality-explorer-${activeEffects}-${timestamp}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Fullscreen Toggle
+  document.getElementById('fullscreenButton').addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      document.getElementById('fullscreenButton').textContent = '⏏';
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+        document.getElementById('fullscreenButton').textContent = '⛶';
+      }
+    }
+  });
+
+  // Toggle Control Panel
+  document.getElementById('togglePanelButton').addEventListener('click', () => {
+    const controlPanel = document.getElementById('controlPanel');
+    controlPanel.classList.toggle('hidden');
+  });
+
+  // Help Button
+  document.getElementById('helpButton').addEventListener('click', () => {
+    const helpModal = document.getElementById('helpModal');
+    const helpContent = document.getElementById('helpContent');
+    helpContent.innerHTML = '';
+    for (const effect in effects) {
+      const effectInfo = document.createElement('div');
+      effectInfo.innerHTML = `<h3>${effect.charAt(0).toUpperCase() + effect.slice(1)}</h3><p>${effects[effect].description}</p>`;
+      helpContent.appendChild(effectInfo);
+    }
+    helpModal.style.display = 'flex';
+  });
+
+  // Close Help Modal
+  document.getElementById('closeHelpButton').addEventListener('click', () => {
+    document.getElementById('helpModal').style.display = 'none';
+  });
+
+  // Initialize the application
+  initCamera();
+  createEffectControls();
+
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    mainCanvas.width = window.innerWidth;
+    mainCanvas.height = window.innerHeight;
+  });
+</script>
+</body>
+</html>
