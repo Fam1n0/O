@@ -247,3 +247,204 @@
     </script>
 </body>
 </html>
+
+        // Create basic boundaries with floor color
+        let ground = Bodies.rectangle(width / 2, height, width * 10, 40, { isStatic: true, render: { fillStyle: floorColor } });
+        const ceiling = Bodies.rectangle(width / 2, 0, width * 10, 40, { isStatic: true, render: { fillStyle: '#444' } });
+        World.add(world, [ground, ceiling]);
+
+        // Create poop character (auto-move right and jump with tap)
+        const poop = Bodies.rectangle(100, height - 100, 40, 40, {
+            render: {
+                fillStyle: '#654321',
+                strokeStyle: '#332211',
+                lineWidth: 2
+            }
+        });
+        World.add(world, poop);
+
+        // Score, lives, and fly energy display
+        const scoreElement = document.getElementById('score');
+        const livesElement = document.getElementById('lives');
+        const levelElement = document.getElementById('level');
+        const flyEnergyElement = document.getElementById('energy');
+        const flagElement = document.getElementById('levelFlag');
+
+        function updateScore() {
+            scoreElement.innerText = toiletsAvoided;
+        }
+
+        function updateLives() {
+            livesElement.innerText = lives;
+        }
+
+        function updateLevel() {
+            levelElement.innerText = level;
+        }
+
+        function updateFlyEnergy() {
+            flyEnergyElement.innerText = flyEnergy + '%';
+        }
+
+        function resetGame() {
+            lives = 3;
+            toiletsAvoided = 0;
+            level = 1;
+            flyEnergy = 100;
+            speedMultiplier = 1;
+            floorColor = '#444';
+            bgColor = '#000';
+            isResting = false;
+            updateScore();
+            updateLives();
+            updateLevel();
+            updateFlyEnergy();
+            flagElement.style.display = 'none';
+            Body.setPosition(poop, { x: 100, y: height - 100 });
+
+            // Reset the floor color and background
+            World.remove(world, ground);
+            ground = Bodies.rectangle(width / 2, height, width * 10, 40, { isStatic: true, render: { fillStyle: floorColor } });
+            render.options.background = bgColor;
+            World.add(world, ground);
+        }
+
+        // Function to show flag and update floor color and background
+        function levelUp() {
+            level++;
+            speedMultiplier += 0.2;
+            floorColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+            bgColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+            flagElement.style.display = 'block';
+
+            setTimeout(() => {
+                flagElement.style.display = 'none';
+            }, 1000);
+
+            updateLevel();
+
+            // Update the floor color and background
+            World.remove(world, ground);
+            ground = Bodies.rectangle(width / 2, height, width * 10, 40, { isStatic: true, render: { fillStyle: floorColor } });
+            render.options.background = bgColor;
+            World.add(world, ground);
+        }
+
+        // Particle effect for jumps (basic spark simulation)
+        function createSparkEffect(x, y) {
+            const spark = Bodies.circle(x, y, 5, {
+                render: { fillStyle: '#FFD700' },
+                isStatic: false
+            });
+            World.add(world, spark);
+
+            setTimeout(() => {
+                World.remove(world, spark);  // Remove spark after a short delay
+            }, 500);
+        }
+
+        // Jetpack Joyride style controls (tap to ascend)
+        document.body.addEventListener('touchstart', () => {
+            if (!isResting && flyEnergy > 0) {
+                isAscending = true;
+                createSparkEffect(poop.position.x, poop.position.y);  // Create spark effect on jump
+            }
+        });
+        document.body.addEventListener('touchend', () => isAscending = false);
+
+        // Update movement based on controls
+        Events.on(engine, 'beforeUpdate', function() {
+            Body.setVelocity(poop, { x: 2 * speedMultiplier, y: poop.velocity.y });
+
+            if (isAscending && flyEnergy > 0) {
+                Body.setVelocity(poop, { x: poop.velocity.x, y: -5 * speedMultiplier });
+                flyEnergy -= 1;
+                updateFlyEnergy();
+            } else if (!isAscending && flyEnergy < 100) {
+                flyEnergy += 0.5;
+                updateFlyEnergy();
+            }
+
+            if (flyEnergy <= 0) {
+                isResting = true;
+                isAscending = false;
+            }
+
+            if (flyEnergy >= 20) {
+                isResting = false;
+            }
+
+            render.bounds.min.x = poop.position.x - width / 2;
+            render.bounds.max.x = poop.position.x + width / 2;
+            render.bounds.min.y = poop.position.y - height / 2;
+            render.bounds.max.y = poop.position.y + height / 2;
+        });
+
+        // Create toilets dynamically with attraction and jumping toward poop
+        let toilets = [];
+
+        function createToilet() {
+            const x = poop.position.x + Math.random() * 500 + width;
+            const y = Math.random() * (height - 120) + 60;
+            const toilet = Bodies.rectangle(x, y, 50, 50, {
+                isStatic: false,
+                render: { fillStyle: '#ffffff', strokeStyle: '#000', lineWidth: 2 }
+            });
+            toilets.push(toilet);
+            World.add(world, toilet);
+
+            setInterval(() => {
+                const jumpPower = Math.random() * 10 + 5;
+                Body.setVelocity(toilet, { x: toilet.velocity.x, y: -jumpPower });
+            }, Math.random() * 3000 + 2000);
+        }
+
+        setInterval(() => {
+            createToilet();
+
+            toilets.forEach(toilet => {
+                const dx = poop.position.x - toilet.position.x;
+                const dy = poop.position.y - toilet.position.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance > 50) {
+                    Body.setVelocity(toilet, { x: dx / distance * 1.5 * speedMultiplier, y: toilet.velocity.y });
+                }
+            });
+
+            toilets = toilets.filter(toilet => {
+                if (toilet.position.x < poop.position.x - width) {
+                    World.remove(world, toilet);
+                    toiletsAvoided++;
+                    updateScore();
+
+                    if (toiletsAvoided % 10 === 0) {
+                        levelUp();
+                    }
+                    return false;
+                }
+                return true;
+            });
+        }, 1500);
+
+        // Collision Detection: Lose a life if caught by a toilet
+        Events.on(engine, 'collisionStart', function(event) {
+            const pairs = event.pairs;
+            pairs.forEach(pair => {
+                if (pair.bodyA === poop && toilets.includes(pair.bodyB)) {
+                    lives--;  // Lose a life
+                    updateLives();
+
+                    if (lives > 0) {
+                        // Reset poop position if lives are remaining
+                        Body.setPosition(poop, { x: 100, y: height - 100 });
+                    } else {
+                        // Game over, reset game
+                        resetGame();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
