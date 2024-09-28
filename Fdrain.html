@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smooth AI Painter</title>
+    <title>Evolving AI Painter</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body, html {
@@ -42,53 +42,48 @@
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+
         function resizeCanvas() {
-            if (window.innerWidth < 768) { canvas.width = window.innerWidth * 0.9; canvas.height = window.innerWidth * 0.9; }
-            else { canvas.width = 600; canvas.height = 600; }
+            if (window.innerWidth < 768) {
+                canvas.width = window.innerWidth * 0.9;
+                canvas.height = window.innerWidth * 0.9;
+            } else {
+                canvas.width = 600;
+                canvas.height = 600;
+            }
             ctx.imageSmoothingEnabled = false;
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
+
         function easeInOutQuad(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+
         class AIPainter {
             constructor() {
-                this.colorPalette = this.getColorPalette('rainbow');
-                this.actions = ['smoothGradientFill', 'smoothBezierCurve', 'smoothCircle', 'smoothPolygon', 'smoothFractalArt'];
+                this.colorPalette = this.getColorPalette('dynamic');
+                this.actions = ['smoothBezierCurve', 'smoothCircle', 'smoothPolygon', 'smoothFractalArt', 'blendColors'];
                 this.maxQEntries = 10000;
                 this.qTable = {};
             }
             getColorPalette(type) {
                 const palettes = {
-                    rainbow: ['#FF4500', '#FFD700', '#00FF00', '#00FFFF', '#1E90FF', '#8A2BE2', '#FF00FF'],
+                    dynamic: ['#FF4500', '#FFD700', '#00FF00', '#00FFFF', '#1E90FF', '#8A2BE2', '#FF00FF'],
                     pastel: ['#FFB6C1', '#FFDAB9', '#E6E6FA', '#FFFACD', '#98FB98', '#AFEEEE'],
                     monochrome: ['#FFFFFF', '#C0C0C0', '#808080', '#404040', '#000000']
                 };
-                return palettes[type] || palettes['rainbow'];
+                return palettes[type] || palettes['dynamic'];
             }
             getRandomColor() { return this.colorPalette[Math.floor(Math.random() * this.colorPalette.length)]; }
             performAction() {
                 const actionIndex = Math.floor(Math.random() * this.actions.length);
                 const action = this.actions[actionIndex];
                 switch (action) {
-                    case 'smoothGradientFill': this.smoothGradientFill(); break;
                     case 'smoothBezierCurve': this.smoothBezierCurve(); break;
                     case 'smoothCircle': this.smoothCircle(); break;
                     case 'smoothPolygon': this.smoothPolygon(); break;
                     case 'smoothFractalArt': this.smoothFractalArt(); break;
+                    case 'blendColors': this.blendColors(); break;
                 }
-            }
-            smoothGradientFill() {
-                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-                this.colorPalette.forEach((color, index) => gradient.addColorStop(index / (this.colorPalette.length - 1), color));
-                let opacity = 0; const duration = 2000; const startTime = performance.now();
-                const fadeIn = (time) => {
-                    const elapsed = time - startTime; const progress = Math.min(elapsed / duration, 1);
-                    opacity = easeInOutQuad(progress);
-                    ctx.globalAlpha = opacity; ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    if (progress < 1) requestAnimationFrame(fadeIn);
-                    else ctx.globalAlpha = 1;
-                };
-                requestAnimationFrame(fadeIn);
             }
             smoothBezierCurve() {
                 const startX = Math.random() * canvas.width; const startY = Math.random() * canvas.height;
@@ -184,6 +179,7 @@
                 }
             }
         }
+
         const aiPainter = new AIPainter();
         let lastActionTime = 0; const actionInterval = 2000;
         function aiLoop(timestamp) {
@@ -193,11 +189,16 @@
             requestAnimationFrame(aiLoop);
         }
         requestAnimationFrame(aiLoop);
+
         const fullscreenBtn = document.getElementById('fullscreen-btn');
         fullscreenBtn.addEventListener('click', () => {
-            if (!document.fullscreenElement) { canvas.requestFullscreen().catch(err => { alert(`Error: ${err.message}`); }); }
-            else { document.exitFullscreen(); }
+            if (!document.fullscreenElement) {
+                canvas.requestFullscreen().catch(err => { alert(`Error: ${err.message}`); });
+            } else {
+                document.exitFullscreen();
+            }
         });
+
         const saveBtn = document.getElementById('save-btn');
         saveBtn.addEventListener('click', () => {
             const link = document.createElement('a'); link.download = 'ai_painted_artwork.png'; link.href = canvas.toDataURL(); link.click();
