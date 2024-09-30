@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word to Number Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        input {
+            padding: 10px;
+            width: 300px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        #result, #sum {
+            margin-top: 20px;
+            font-size: 20px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Word to Number Converter</h1>
+    <input type="text" id="wordInput" placeholder="Enter a word or phrase">
+    <button onclick="convertWord()">Convert</button>
+
+    <div id="result"></div>
+    <div id="sum"></div>
+
+    <script>
+        const conversionTable = {
+            'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7, 'H': 8, 'I': 9,
+            'J': 1, 'K': 2, 'L': 3, 'M': 4, 'N': 5, 'O': 6, 'P': 7, 'Q': 8, 'R': 9,
+            'S': 1, 'T': 2, 'U': 3, 'V': 4, 'W': 5, 'X': 6, 'Y': 7, 'Z': 8
+        };
+
+        function convertWord() {
+            const input = document.getElementById('wordInput').value.toUpperCase();
+            let words = input.split(' ');
+            let totalSum = 0;
+            let resultText = '';
+            let wordSums = [];
+
+            // Iterate through each word in the input
+            words.forEach(word => {
+                let wordSum = 0;
+                let convertedWord = '';
+
+                // Iterate through each character in the word
+                for (let i = 0; i < word.length; i++) {
+                    const char = word[i];
+                    if (conversionTable[char]) {
+                        convertedWord += conversionTable[char] + ' ';
+                        wordSum += conversionTable[char];
+                    }
+                }
+
+                resultText += `Word "${word}" converted to: ${convertedWord.trim()}<br>`;
+                wordSums.push(wordSum);
+                totalSum += wordSum;
+            });
+
+            // Display the converted words and their sums
+            let sumText = 'Individual Word Sums: <br>';
+            for (let i = 0; i < wordSums.length; i++) {
+                sumText += `Word "${words[i]}" sum: ${wordSums[i]}<br>`;
+            }
+
+            sumText += `<br>Total Sentence Sum: ${totalSum}`;
+
+            document.getElementById('result').innerHTML = resultText;
+            document.getElementById('sum').innerHTML = sumText;
+        }
+    </script>
+</body>
+</html>
