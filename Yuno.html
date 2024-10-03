@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Cymatic Waves with Audio Input</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+            margin-top: 10px;
+        }
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            z-index: 10;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label>
+            Wave Amplitude: <input type="range" id="amplitudeControl" min="10" max="300" value="100">
+        </label>
+        <label>
+            Wave Frequency: <input type="range" id="frequencyControl" min="0.01" max="0.1" value="0.05" step="0.01">
+        </label>
+        <label>
+            Damping Effect: <input type="range" id="dampingControl" min="0.5" max="2" value="1" step="0.1">
+        </label>
+    </div>
+
+    <!-- Canvas to display wave propagation -->
+    <canvas id="cymaticCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("cymaticCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Resize canvas to fit the full window
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let audioContext;
+        let analyser;
+        let microphone;
+        let frequencyData;
+        let time = 0;
+
+        // Controls
+        const amplitudeControl = document.getElementById('amplitudeControl');
+        const frequencyControl = document.getElementById('frequencyControl');
+        const dampingControl = document.getElementById('dampingControl');
+
+        // Set up the audio input and analyser
+        async function setupMicrophone() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;  // Smaller FFT size gives us fewer, larger chunks of frequency data.
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                drawCymatics();
+            } catch (error) {
+                console.error("Microphone access denied or not supported.", error);
+                alert("Microphone access is required to run this simulation.");
+            }
+        }
+
+        // Draw cymatic patterns using audio input with user controls
+        function drawCymatics() {
+            analyser.getByteFrequencyData(frequencyData);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const waveAmplitude = parseFloat(amplitudeControl.value);
+            const frequency = parseFloat(frequencyControl.value);
+            const dampingEffect = parseFloat(dampingControl.value);
+
+            for (let x = 0; x < canvas.width; x += 20) {
+                for (let y = 0; y < canvas.height; y += 20) {
+                    let distance = Math.sqrt((x - canvas.width / 2) ** 2 + (y - canvas.height / 2) ** 2);
+
+                    // Use inverse-square law for wave intensity decrease over distance
+                    let waveIntensity = waveAmplitude / (1 + distance / (canvas.width * dampingEffect));
+
+                    // Use frequency data to alter the angle and wave amplitude
+                    let freqIndex = Math.floor((distance / canvas.width) * frequencyData.length);
+                    let frequencyValue = frequencyData[freqIndex] / 255; // Normalize between 0 and 1
+
+                    let angle = distance * frequency - time * frequencyValue;
+                    let wave = Math.sin(angle) * waveIntensity * frequencyValue;
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, Math.abs(wave / 10), 0, 2 * Math.PI);
+                    ctx.fillStyle = `hsl(${(wave * 3) + 200}, 100%, 50%)`;
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+
+            time += 0.05;
+            requestAnimationFrame(drawCymatics);
+        }
+
+        // Start the program
+        setupMicrophone();
+    </script>
+</body>
+</html>
