@@ -1,0 +1,514 @@
+
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>edge of reality detection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- copyright Jamison Banks 2024 --!>
+  <style>
+    /* Reset and Basic Styles */
+    * {
+      box-sizing: border-box;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background-color: #1e1e1e;
+      color: #f0f0f0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    /* Canvas and Video */
+    #canvasWrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    canvas, video {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    video {
+      display: none;
+    }
+    /* Control Panel */
+    #controlPanel {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: rgba(30, 30, 30, 0.9);
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 10;
+      transition: transform 0.3s ease;
+    }
+    #controlPanel.collapsed {
+      transform: translateY(100%);
+    }
+    #controlPanel label {
+      font-size: 14px;
+      margin-right: 5px;
+    }
+    #controlPanel input[type="range"], #controlPanel select {
+      width: 100px;
+      margin-right: 10px;
+    }
+    #controlPanel input[type="checkbox"] {
+      margin-left: 5px;
+    }
+    #controlPanel input[type="color"] {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: none;
+      background: none;
+    }
+    /* Buttons */
+    .control-button {
+      position: absolute;
+      top: 10px;
+      background-color: rgba(50, 50, 50, 0.7);
+      border: none;
+      border-radius: 5px;
+      font-size: 20px;
+      color: #f0f0f0;
+      cursor: pointer;
+      z-index: 10;
+      padding: 10px;
+      margin: 5px;
+    }
+    .control-button:hover {
+      background-color: rgba(70, 70, 70, 0.9);
+    }
+    #saveButton {
+      right: 10px;
+    }
+    #fullscreenButton {
+      right: 60px;
+    }
+    #toggleControlPanelButton {
+      right: 110px;
+    }
+    /* Media Queries */
+    @media (max-width: 600px) {
+      #controlPanel {
+        flex-direction: column;
+        align-items: flex-start;
+        overflow-y: auto;
+        max-height: 50vh;
+      }
+      #controlPanel label, #controlPanel input, #controlPanel select {
+        margin: 5px 0;
+      }
+      .control-button {
+        font-size: 18px;
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvasWrapper">
+    <video id="videoElement" autoplay playsinline></video>
+    <canvas id="mainCanvas"></canvas>
+
+    <!-- Control Panel -->
+    <div id="controlPanel">
+      <label for="presetSelect">Presets:</label>
+      <select id="presetSelect">
+        <option value="">Custom</option>
+        <option value="outline">Outline</option>
+        <option value="sketch">Sketch</option>
+        <option value="detailed">Detailed</option>
+      </select>
+
+      <label for="methodSelect">Method:</label>
+      <select id="methodSelect">
+        <option value="sobel">Sobel</option>
+        <option value="prewitt">Prewitt</option>
+        <option value="laplacian">Laplacian</option>
+        <option value="canny">Canny</option>
+      </select>
+
+      <label for="thresholdRange">Threshold:</label>
+      <input type="range" id="thresholdRange" min="0" max="255" value="100">
+
+      <label for="kernelSizeRange">Kernel Size:</label>
+      <input type="range" id="kernelSizeRange" min="3" max="7" step="2" value="3">
+
+      <label for="blurRange">Blur:</label>
+      <input type="range" id="blurRange" min="0" max="5" value="0">
+
+      <label for="contrastRange">Contrast:</label>
+      <input type="range" id="contrastRange" min="-100" max="100" value="0">
+
+      <label for="brightnessRange">Brightness:</label>
+      <input type="range" id="brightnessRange" min="-100" max="100" value="0">
+
+      <label for="colorizeCheckbox">Colorize Edges:</label>
+      <input type="checkbox" id="colorizeCheckbox">
+      <input type="color" id="edgeColorPicker" value="#ffffff" style="display: none;">
+    </div>
+
+    <!-- Buttons -->
+    <button id="saveButton" class="control-button" aria-label="Save Image">💾</button>
+    <button id="fullscreenButton" class="control-button" aria-label="Toggle Fullscreen">⛶</button>
+    <button id="toggleControlPanelButton" class="control-button" aria-label="Toggle Controls">☰</button>
+  </div>
+
+  <!-- Script -->
+  <script type="text/javascript">
+    // Feature Detection and Initialization
+    function checkBrowserCompatibility() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Your browser does not support camera access.');
+        return false;
+      }
+      if (typeof WebAssembly === 'undefined') {
+        alert('Your browser does not support WebAssembly.');
+        return false;
+      }
+      return true;
+    }
+
+    if (checkBrowserCompatibility()) {
+      loadOpenCV(initApp);
+    }
+
+    // Lazy Load OpenCV.js
+    function loadOpenCV(callback) {
+      if (typeof cv === 'undefined') {
+        let script = document.createElement('script');
+        script.src = 'https://docs.opencv.org/4.x/opencv.js';
+        script.onload = () => {
+          cv['onRuntimeInitialized'] = () => {
+            console.log('OpenCV.js loaded');
+            callback();
+          };
+        };
+        script.onerror = () => {
+          alert('Failed to load OpenCV.js');
+        };
+        document.body.appendChild(script);
+      } else {
+        cv['onRuntimeInitialized'] = callback;
+      }
+    }
+
+    function initApp() {
+      // DOM Elements
+      const video = document.getElementById('videoElement');
+      const canvas = document.getElementById('mainCanvas');
+      const ctx = canvas.getContext('2d');
+      const controlPanel = document.getElementById('controlPanel');
+      const saveButton = document.getElementById('saveButton');
+      const fullscreenButton = document.getElementById('fullscreenButton');
+      const toggleControlPanelButton = document.getElementById('toggleControlPanelButton');
+
+      // Control Inputs
+      const presetSelect = document.getElementById('presetSelect');
+      const methodSelect = document.getElementById('methodSelect');
+      const thresholdRange = document.getElementById('thresholdRange');
+      const kernelSizeRange = document.getElementById('kernelSizeRange');
+      const blurRange = document.getElementById('blurRange');
+      const contrastRange = document.getElementById('contrastRange');
+      const brightnessRange = document.getElementById('brightnessRange');
+      const colorizeCheckbox = document.getElementById('colorizeCheckbox');
+      const edgeColorPicker = document.getElementById('edgeColorPicker');
+
+      // Settings Variables
+      let threshold = parseInt(thresholdRange.value, 10);
+      let kernelSize = parseInt(kernelSizeRange.value, 10);
+      let blurRadius = parseInt(blurRange.value, 10);
+      let edgeMethod = methodSelect.value;
+      let colorizeEdges = colorizeCheckbox.checked;
+      let edgeColor = edgeColorPicker.value;
+      let contrast = parseInt(contrastRange.value, 10);
+      let brightness = parseInt(brightnessRange.value, 10);
+
+      // Initialize
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      function resizeCanvas() {
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        canvas.width = window.innerWidth * devicePixelRatio;
+        canvas.height = window.innerHeight * devicePixelRatio;
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+      }
+
+      // Event Listeners for Controls
+      thresholdRange.addEventListener('input', (e) => {
+        threshold = parseInt(e.target.value, 10);
+        e.target.title = `Threshold: ${threshold}`;
+      });
+
+      kernelSizeRange.addEventListener('input', (e) => {
+        kernelSize = parseInt(e.target.value, 10);
+        e.target.title = `Kernel Size: ${kernelSize}`;
+      });
+
+      blurRange.addEventListener('input', (e) => {
+        blurRadius = parseInt(e.target.value, 10);
+        e.target.title = `Blur Radius: ${blurRadius}`;
+      });
+
+      contrastRange.addEventListener('input', (e) => {
+        contrast = parseInt(e.target.value, 10);
+        e.target.title = `Contrast: ${contrast}`;
+      });
+
+      brightnessRange.addEventListener('input', (e) => {
+        brightness = parseInt(e.target.value, 10);
+        e.target.title = `Brightness: ${brightness}`;
+      });
+
+      methodSelect.addEventListener('change', (e) => {
+        edgeMethod = e.target.value;
+        if (edgeMethod === 'laplacian') {
+          kernelSizeRange.disabled = false;
+        } else {
+          kernelSizeRange.disabled = true;
+        }
+      });
+
+      colorizeCheckbox.addEventListener('change', (e) => {
+        colorizeEdges = e.target.checked;
+        edgeColorPicker.style.display = colorizeEdges ? 'inline-block' : 'none';
+      });
+
+      edgeColorPicker.addEventListener('input', (e) => {
+        edgeColor = e.target.value;
+      });
+
+      presetSelect.addEventListener('change', (e) => {
+        switch (e.target.value) {
+          case 'outline':
+            thresholdRange.value = 150;
+            blurRange.value = 1;
+            methodSelect.value = 'sobel';
+            break;
+          case 'sketch':
+            thresholdRange.value = 100;
+            blurRange.value = 2;
+            methodSelect.value = 'prewitt';
+            break;
+          case 'detailed':
+            thresholdRange.value = 50;
+            blurRange.value = 0;
+            methodSelect.value = 'laplacian';
+            break;
+          default:
+            // Custom settings
+            break;
+        }
+        // Update variables
+        thresholdRange.dispatchEvent(new Event('input'));
+        blurRange.dispatchEvent(new Event('input'));
+        methodSelect.dispatchEvent(new Event('change'));
+      });
+
+      // Camera Initialization
+      initCamera();
+
+      async function initCamera() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+          video.srcObject = stream;
+          video.play();
+          video.addEventListener('loadeddata', () => {
+            console.log('Camera stream loaded');
+            requestAnimationFrame(processFrame);
+          });
+        } catch (err) {
+          if (err.name === 'NotAllowedError') {
+            alert('Camera access was denied. Please allow camera access and refresh the page.');
+          } else if (err.name === 'NotFoundError') {
+            alert('No camera found on this device.');
+          } else {
+            handleError('Camera Initialization Error', err);
+          }
+        }
+      }
+
+      // Frame Processing
+      function processFrame() {
+        try {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          adjustContrastBrightness(imageData);
+          applyEdgeDetection(imageData);
+          requestAnimationFrame(processFrame);
+        } catch (err) {
+          handleError('Frame Processing Error', err);
+        }
+      }
+
+      // Adjust Contrast and Brightness
+      function adjustContrastBrightness(imageData) {
+        const data = imageData.data;
+        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = factor * (data[i] - 128) + 128 + brightness;
+          data[i + 1] = factor * (data[i + 1] - 128) + 128 + brightness;
+          data[i + 2] = factor * (data[i + 2] - 128) + 128 + brightness;
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      // Edge Detection
+      function applyEdgeDetection(imageData) {
+        try {
+          const src = cv.matFromImageData(imageData);
+          let dst = new cv.Mat();
+          let gray = new cv.Mat();
+          let edge = new cv.Mat();
+
+          // Convert to grayscale
+          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+          // Apply Gaussian Blur
+          if (blurRadius > 0) {
+            let ksize = new cv.Size(blurRadius * 2 + 1, blurRadius * 2 + 1);
+            cv.GaussianBlur(gray, gray, ksize, 0, 0, cv.BORDER_DEFAULT);
+          }
+
+          // Edge Detection Methods
+          switch (edgeMethod) {
+            case 'canny':
+              cv.Canny(gray, edge, threshold, threshold * 2);
+              break;
+            case 'sobel':
+              let gradX = new cv.Mat();
+              let gradY = new cv.Mat();
+              cv.Sobel(gray, gradX, cv.CV_16S, 1, 0, kernelSize);
+              cv.Sobel(gray, gradY, cv.CV_16S, 0, 1, kernelSize);
+              cv.convertScaleAbs(gradX, gradX);
+              cv.convertScaleAbs(gradY, gradY);
+              cv.addWeighted(gradX, 0.5, gradY, 0.5, 0, edge);
+              gradX.delete(); gradY.delete();
+              break;
+            case 'prewitt':
+              let kernelX = cv.matFromArray(3, 3, cv.CV_32F, [-1, 0, 1, -1, 0, 1, -1, 0, 1]);
+              let kernelY = cv.matFromArray(3, 3, cv.CV_32F, [-1, -1, -1, 0, 0, 0, 1, 1, 1]);
+              let gradX_prewitt = new cv.Mat();
+              let gradY_prewitt = new cv.Mat();
+              cv.filter2D(gray, gradX_prewitt, cv.CV_16S, kernelX);
+              cv.filter2D(gray, gradY_prewitt, cv.CV_16S, kernelY);
+              cv.convertScaleAbs(gradX_prewitt, gradX_prewitt);
+              cv.convertScaleAbs(gradY_prewitt, gradY_prewitt);
+              cv.addWeighted(gradX_prewitt, 0.5, gradY_prewitt, 0.5, 0, edge);
+              gradX_prewitt.delete(); gradY_prewitt.delete();
+              kernelX.delete(); kernelY.delete();
+              break;
+            case 'laplacian':
+              cv.Laplacian(gray, edge, cv.CV_16S, kernelSize, 1, 0, cv.BORDER_DEFAULT);
+              cv.convertScaleAbs(edge, edge);
+              break;
+            default:
+              cv.Canny(gray, edge, threshold, threshold * 2);
+              break;
+          }
+
+          // Apply Threshold
+          cv.threshold(edge, edge, threshold, 255, cv.THRESH_BINARY);
+
+          // Convert to RGBA
+          cv.cvtColor(edge, dst, cv.COLOR_GRAY2RGBA);
+
+          // Colorize Edges
+          if (colorizeEdges) {
+            let data = dst.data;
+            const r = parseInt(edgeColor.slice(1, 3), 16);
+            const g = parseInt(edgeColor.slice(3, 5), 16);
+            const b = parseInt(edgeColor.slice(5, 7), 16);
+            for (let i = 0; i < data.length; i += 4) {
+              if (data[i] > 0) {
+                data[i] = r;
+                data[i + 1] = g;
+                data[i + 2] = b;
+              }
+            }
+          }
+
+          // Display on Canvas
+          const outputImageData = new ImageData(new Uint8ClampedArray(dst.data), dst.cols, dst.rows);
+          ctx.putImageData(outputImageData, 0, 0);
+
+          // Clean Up
+          src.delete();
+          dst.delete();
+          gray.delete();
+          edge.delete();
+        } catch (err) {
+          handleError('Edge Detection Error', err);
+        }
+      }
+
+      // Error Handling
+      function handleError(context, error) {
+        console.error(`${context}:`, error);
+        alert(`${context}: ${error.message}`);
+      }
+
+      // Save Image
+      saveButton.addEventListener('click', () => {
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+        // Create a higher-resolution canvas for saving
+        const saveCanvas = document.createElement('canvas');
+        const saveCtx = saveCanvas.getContext('2d');
+        const resolutionMultiplier = 2; // Increase for higher resolution
+        saveCanvas.width = canvas.width * resolutionMultiplier;
+        saveCanvas.height = canvas.height * resolutionMultiplier;
+
+        // Redraw the current frame at higher resolution
+        saveCtx.scale(resolutionMultiplier, resolutionMultiplier);
+        saveCtx.drawImage(canvas, 0, 0);
+
+        // Save the image
+        link.href = saveCanvas.toDataURL('image/png');
+        link.download = `edge-detection-${timestamp}.png`;
+        link.click();
+      });
+
+      // Fullscreen Toggle
+      fullscreenButton.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+          fullscreenButton.textContent = '⏏';
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+            fullscreenButton.textContent = '⛶';
+          }
+        }
+      });
+
+      // Toggle Control Panel
+      toggleControlPanelButton.addEventListener('click', () => {
+        controlPanel.classList.toggle('collapsed');
+      });
+
+      // Clean Up on Unload
+      window.addEventListener('beforeunload', () => {
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+        }
+      });
+    }
+  </script>
+</body>
+</html>
