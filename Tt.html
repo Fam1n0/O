@@ -1,0 +1,239 @@
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Advanced Edge Detection with Adjustable Filters</title>
+  <style>
+    body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+    canvas { border: 1px solid black; margin-top: 20px; }
+    .controls { margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center; }
+    .control-group { margin: 10px; }
+    label { display: block; margin-bottom: 5px; }
+    input[type="range"] { width: 200px; }
+    button { margin-top: 10px; margin-right: 10px; padding: 10px 15px; }
+  </style>
+</head>
+<body>
+
+  <h1>Advanced Edge Detection with Adjustable Filters</h1>
+  <canvas id="canvasOutput"></canvas>
+
+  <!-- Controls for adjusting filters -->
+  <div class="controls">
+    <div class="control-group">
+      <label for="threshold1">Threshold1</label>
+      <input id="threshold1" type="range" min="0" max="500" value="100">
+    </div>
+    <div class="control-group">
+      <label for="threshold2">Threshold2</label>
+      <input id="threshold2" type="range" min="0" max="500" value="200">
+    </div>
+    <div class="control-group">
+      <label for="brightness">Brightness</label>
+      <input id="brightness" type="range" min="-100" max="100" value="0">
+    </div>
+    <div class="control-group">
+      <label for="contrast">Contrast</label>
+      <input id="contrast" type="range" min="-100" max="100" value="0">
+    </div>
+    <div class="control-group">
+      <label for="histogramEqualization">Histogram Equalization</label>
+      <input id="histogramEqualization" type="checkbox">
+    </div>
+    <div class="control-group">
+      <label for="clahe">CLAHE</label>
+      <input id="clahe" type="checkbox">
+    </div>
+    <div class="control-group">
+      <label for="edgeEnhancement">Edge Enhancement</label>
+      <input id="edgeEnhancement" type="checkbox">
+    </div>
+  </div>
+
+  <!-- Buttons for capturing image and switching camera -->
+  <div>
+    <button id="captureButton">Capture Image</button>
+    <button id="switchCameraButton">Switch Camera</button>
+  </div>
+
+  <!-- Include OpenCV.js -->
+  <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();"></script>
+
+  <script>
+    let video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true; // Required for iOS
+
+    let currentStream = null;
+    let useRearCamera = true; // Start with rear camera
+
+    function startCamera() {
+      // Stop any existing video stream
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+
+      // Define constraints for rear or front camera
+      let constraints = {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: useRearCamera ? 'environment' : 'user'
+        },
+        audio: false
+      };
+
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(function(stream) {
+          currentStream = stream;
+          video.srcObject = stream;
+        })
+        .catch(function(err) {
+          console.error("Error accessing the camera: " + err);
+        });
+    }
+
+    function onOpenCvReady() {
+      // Start the camera after OpenCV is ready
+      startCamera();
+
+      // Once the video metadata is loaded, we can set up our processing
+      video.addEventListener('loadedmetadata', function() {
+        // Set up the canvas
+        let canvas = document.getElementById('canvasOutput');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        let ctx = canvas.getContext('2d');
+
+        // Create OpenCV matrices
+        let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+        let dst = new cv.Mat();
+        let gray = new cv.Mat();
+        let edges = new cv.Mat();
+        let processed = new cv.Mat();
+
+        // Get filter controls
+        let threshold1Input = document.getElementById('threshold1');
+        let threshold2Input = document.getElementById('threshold2');
+        let brightnessInput = document.getElementById('brightness');
+        let contrastInput = document.getElementById('contrast');
+        let histogramEqualizationCheckbox = document.getElementById('histogramEqualization');
+        let claheCheckbox = document.getElementById('clahe');
+        let edgeEnhancementCheckbox = document.getElementById('edgeEnhancement');
+
+        let threshold1 = parseInt(threshold1Input.value);
+        let threshold2 = parseInt(threshold2Input.value);
+        let brightness = parseInt(brightnessInput.value);
+        let contrast = parseInt(contrastInput.value);
+        let applyHistogramEqualization = histogramEqualizationCheckbox.checked;
+        let applyCLAHE = claheCheckbox.checked;
+        let applyEdgeEnhancement = edgeEnhancementCheckbox.checked;
+
+        // Update filter parameters when inputs change
+        threshold1Input.oninput = function() {
+          threshold1 = parseInt(this.value);
+        };
+        threshold2Input.oninput = function() {
+          threshold2 = parseInt(this.value);
+        };
+        brightnessInput.oninput = function() {
+          brightness = parseInt(this.value);
+        };
+        contrastInput.oninput = function() {
+          contrast = parseInt(this.value);
+        };
+        histogramEqualizationCheckbox.onchange = function() {
+          applyHistogramEqualization = this.checked;
+        };
+        claheCheckbox.onchange = function() {
+          applyCLAHE = this.checked;
+        };
+        edgeEnhancementCheckbox.onchange = function() {
+          applyEdgeEnhancement = this.checked;
+        };
+
+        // Process video frames
+        function processFrame() {
+          try {
+            // Draw the video frame to the canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // Get the image data from the canvas
+            let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // Assign image data to src Mat
+            src.data.set(imageData.data);
+
+            // Apply brightness and contrast adjustment
+            src.convertTo(dst, -1, 1 + contrast / 100.0, brightness);
+
+            // Convert to grayscale
+            cv.cvtColor(dst, gray, cv.COLOR_RGBA2GRAY);
+
+            // Apply histogram equalization or CLAHE
+            if (applyHistogramEqualization) {
+              cv.equalizeHist(gray, gray);
+            } else if (applyCLAHE) {
+              let clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
+              clahe.apply(gray, gray);
+              clahe.delete();
+            }
+
+            // Apply edge enhancement
+            if (applyEdgeEnhancement) {
+              // Use Laplacian operator for edge enhancement
+              let laplacian = new cv.Mat();
+              cv.Laplacian(gray, laplacian, cv.CV_16S, 3, 1, 0, cv.BORDER_DEFAULT);
+              cv.convertScaleAbs(laplacian, laplacian);
+              cv.addWeighted(gray, 1, laplacian, -0.5, 0, gray);
+              laplacian.delete();
+            }
+
+            // Apply Canny edge detection
+            cv.Canny(gray, edges, threshold1, threshold2);
+
+            // Convert edges to RGBA
+            cv.cvtColor(edges, processed, cv.COLOR_GRAY2RGBA);
+
+            // Show the result
+            cv.imshow('canvasOutput', processed);
+
+            // Schedule the next frame
+            requestAnimationFrame(processFrame);
+          } catch (err) {
+            console.error("An error occurred during processing: " + err);
+          }
+        }
+
+        // Start processing frames
+        processFrame();
+
+        // Handle capture button click
+        document.getElementById('captureButton').addEventListener('click', function() {
+          // Create a temporary canvas to hold the image
+          let tempCanvas = document.createElement('canvas');
+          tempCanvas.width = canvas.width;
+          tempCanvas.height = canvas.height;
+          let tempCtx = tempCanvas.getContext('2d');
+          tempCtx.drawImage(canvas, 0, 0);
+
+          // Generate a unique filename using timestamp
+          let timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          let filename = 'edge-detection-' + timestamp + '.png';
+
+          // Save the image
+          let link = document.createElement('a');
+          link.download = filename;
+          link.href = tempCanvas.toDataURL('image/png');
+          link.click();
+        });
+
+        // Handle switch camera button click
+        document.getElementById('switchCameraButton').addEventListener('click', function() {
+          useRearCamera = !useRearCamera;
+          startCamera();
+        });
+      });
+    }
+  </script>
+
+</body>
+</html>
