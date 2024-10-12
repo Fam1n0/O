@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Autonomous Exponential Growth Organic Lifeform Visual</title>
+    <style>
+        /* Reset default margins and paddings */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Full-screen canvas */
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            position: relative;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Info Box */
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 10;
+            max-width: 80%;
+            text-align: center;
+        }
+
+        /* FPS Counter */
+        #fps {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <!-- Info Box -->
+    <div id="info">
+        <p><strong>Autonomous Exponential Growth Organic Lifeform Visual</strong></p>
+        <p>The simulation is running autonomously, evolving through exponential growth stages.</p>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Stats.js for FPS Monitoring -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js"></script>
+    <!-- OrbitControls for Camera Interaction -->
+    <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Main JavaScript -->
+    <script>
+        // Initialize Stats for FPS Monitoring
+        const stats = new Stats();
+        stats.showPanel(0); // 0: fps
+        document.getElementById('fps').appendChild(stats.dom);
+
+        // Scene, Camera, Renderer Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.z = 200;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // OrbitControls for Camera Interaction
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Enable inertia
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 100;
+        controls.maxDistance = 500;
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Shader Material for Particles with Dynamic Colors and Sizes
+        const particleMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                pointTexture: { value: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/disc.png') }
+            },
+            vertexShader: `
+                uniform sampler2D pointTexture;
+                varying vec4 vColor;
+                void main() {
+                    vColor = vec4( color, 1.0 );
+                    vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                    gl_PointSize = size * ( 300.0 / -mvPosition.z );
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D pointTexture;
+                varying vec4 vColor;
+                void main() {
+                    gl_FragColor = vColor;
+                    gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
+                    if ( gl_FragColor.a < 0.1 ) discard;
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            depthTest: false,
+            transparent: true
+        });
+
+        // Particle Geometry
+        const maxParticles = 10000; // Start with a manageable number
+        const particleGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(maxParticles * 3);
+        const colors = new Float32Array(maxParticles * 3);
+        const sizes = new Float32Array(maxParticles);
+
+        // Initialize Buffer Attributes
+        for (let i = 0; i < maxParticles; i++) {
+            positions[i * 3] = 0;
+            positions[i * 3 + 1] = 0;
+            positions[i * 3 + 2] = 0;
+
+            colors[i * 3] = 1.0; // Initial color white
+            colors[i * 3 + 1] = 1.0;
+            colors[i * 3 + 2] = 1.0;
+
+            sizes[i] = 1.0;
+        }
+
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+        particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage));
+        particleGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1).setUsage(THREE.DynamicDrawUsage));
+
+        // Particle System
+        const particles = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particles);
+
+        // Particle Pool for Object Pooling
+        class ParticlePool {
+            constructor(maxSize) {
+                this.maxSize = maxSize;
+                this.pool = [];
+                this.currentIndex = 0;
+            }
+
+            getParticle(x, y, z) {
+                if (this.currentIndex >= this.maxSize) {
+                    console.warn('Max particles reached');
+                    return null;
+                }
+                const idx = this.currentIndex;
+                positions[idx * 3] = x;
+                positions[idx * 3 + 1] = y;
+                positions[idx * 3 + 2] = z;
+
+                // Assign random color
+                colors[idx * 3] = Math.random();
+                colors[idx * 3 + 1] = Math.random();
+                colors[idx * 3 + 2] = Math.random();
+
+                // Assign size
+                sizes[idx] = Math.random() * 5 + 1;
+
+                this.currentIndex++;
+                return idx;
+            }
+
+            releaseParticle(idx) {
+                positions[idx * 3] = 0;
+                positions[idx * 3 + 1] = 0;
+                positions[idx * 3 + 2] = 0;
+
+                colors[idx * 3] = 1.0;
+                colors[idx * 3 + 1] = 1.0;
+                colors[idx * 3 + 2] = 1.0;
+
+                sizes[idx] = 1.0;
+            }
+        }
+
+        const particlePool = new ParticlePool(maxParticles);
+
+        // Particle Behavior Variables
+        let initialParticleCount = 100; // Starting number of particles
+        let currentStage = 0; // Current growth stage
+        const maxStages = Infinity; // Allow indefinite growth
+        const growthInterval = 5000; // milliseconds
+        let growthTimer = null;
+
+        // Initialize Particles
+        function initParticles(count) {
+            for (let i = 0; i < count; i++) {
+                const x = (Math.random() - 0.5) * 400;
+                const y = (Math.random() - 0.5) * 400;
+                const z = (Math.random() - 0.5) * 400;
+                const idx = particlePool.getParticle(x, y, z);
+                if (idx !== null) {
+                    autonomousParticles.push(new AutonomousParticle(idx));
+                    updateParticle(idx);
+                }
+            }
+        }
+
+        // Update Particle Attributes in Buffer
+        function updateParticle(idx) {
+            // Update position
+            particleGeometry.attributes.position.array[idx * 3] = positions[idx * 3];
+            particleGeometry.attributes.position.array[idx * 3 + 1] = positions[idx * 3 + 1];
+            particleGeometry.attributes.position.array[idx * 3 + 2] = positions[idx * 3 + 2];
+
+            // Update color
+            particleGeometry.attributes.color.array[idx * 3] = colors[idx * 3];
+            particleGeometry.attributes.color.array[idx * 3 + 1] = colors[idx * 3 + 1];
+            particleGeometry.attributes.color.array[idx * 3 + 2] = colors[idx * 3 + 2];
+
+            // Update size
+            particleGeometry.attributes.size.array[idx] = sizes[idx];
+
+            // Mark attributes as needing update
+            particleGeometry.attributes.position.needsUpdate = true;
+            particleGeometry.attributes.color.needsUpdate = true;
+            particleGeometry.attributes.size.needsUpdate = true;
+        }
+
+        // Define a class for autonomous particles with intentional behaviors
+        class AutonomousParticle {
+            constructor(idx) {
+                this.idx = idx;
+                this.position = new THREE.Vector3(
+                    positions[idx * 3],
+                    positions[idx * 3 + 1],
+                    positions[idx * 3 + 2]
+                );
+                this.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 0.5
+                );
+                this.color = new THREE.Color(colors[idx * 3], colors[idx * 3 + 1], colors[idx * 3 + 2]);
+                this.size = sizes[idx];
+                this.role = 'worker'; // Roles: worker, builder, tool
+                this.energy = 100; // Energy level
+                this.memory = []; // Array to store past interactions
+            }
+
+            update(activeParticles) {
+                // Simple decision-making based on energy
+                if (this.energy > 150 && this.role === 'worker') {
+                    this.role = 'builder';
+                    this.color.set(0xffd700); // Gold for builders
+                    sizes[this.idx] = 5.0;
+                    console.log(`Particle ${this.idx} transitioned to builder.`);
+                } else if (this.energy < 50 && this.role === 'builder') {
+                    this.role = 'worker';
+                    this.color.set(0xffffff); // White for workers
+                    sizes[this.idx] = 2.0;
+                    console.log(`Particle ${this.idx} transitioned back to worker.`);
+                }
+
+                // Behavior based on role
+                switch (this.role) {
+                    case 'worker':
+                        this.workerBehavior(activeParticles);
+                        break;
+                    case 'builder':
+                        this.builderBehavior(activeParticles);
+                        break;
+                    case 'tool':
+                        this.toolBehavior(activeParticles);
+                        break;
+                    default:
+                        this.workerBehavior(activeParticles);
+                }
+
+                // Update position
+                this.position.add(this.velocity);
+
+                // Boundary conditions
+                ['x', 'y', 'z'].forEach(axis => {
+                    if (this.position[axis] > 200) this.position[axis] = -200;
+                    if (this.position[axis] < -200) this.position[axis] = 200;
+                });
+
+                // Update buffer attributes
+                positions[this.idx * 3] = this.position.x;
+                positions[this.idx * 3 + 1] = this.position.y;
+                positions[this.idx * 3 + 2] = this.position.z;
+
+                colors[this.idx * 3] = this.color.r;
+                colors[this.idx * 3 + 1] = this.color.g;
+                colors[this.idx * 3 + 2] = this.color.b;
+
+                sizes[this.idx] = this.size;
+
+                // Mark attributes as needing update
+                particleGeometry.attributes.position.needsUpdate = true;
+                particleGeometry.attributes.color.needsUpdate = true;
+                particleGeometry.attributes.size.needsUpdate = true;
+            }
+
+            workerBehavior(activeParticles) {
+                // Workers move randomly and collect energy
+                this.velocity.x += (Math.random() - 0.5) * 0.02;
+                this.velocity.y += (Math.random() - 0.5) * 0.02;
+                this.velocity.z += (Math.random() - 0.5) * 0.02;
+
+                // Limit speed
+                this.velocity.clampLength(0, 1);
+
+                // Collect energy from environment (simulated)
+                this.energy += 0.1;
+
+                // Occasionally transition to builder state
+                if (Math.random() < 0.001) { // Low probability to prevent overcrowding
+                    this.role = 'builder';
+                    this.color.set(0xffd700); // Gold for builders
+                    this.size = 5.0;
+                    console.log(`Particle ${this.idx} spontaneously became a builder.`);
+                }
+            }
+
+            builderBehavior(activeParticles) {
+                // Builders seek other particles to form tools
+                let target = null;
+                let minDist = Infinity;
+                for (let p of activeParticles) {
+                    if (p.idx === this.idx) continue;
+                    if (p.role !== 'worker') continue;
+                    const dx = positions[p.idx * 3] - this.position.x;
+                    const dy = positions[p.idx * 3 + 1] - this.position.y;
+                    const dz = positions[p.idx * 3 + 2] - this.position.z;
+                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    if (dist < minDist && dist < 50) { // Seek workers within 50 units
+                        minDist = dist;
+                        target = p;
+                    }
+                }
+
+                if (target) {
+                    // Move towards the target
+                    const dx = positions[target.idx * 3] - this.position.x;
+                    const dy = positions[target.idx * 3 + 1] - this.position.y;
+                    const dz = positions[target.idx * 3 + 2] - this.position.z;
+                    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    const direction = new THREE.Vector3(dx, dy, dz).normalize();
+                    this.velocity.add(direction.multiplyScalar(0.05));
+
+                    // If close enough, form a tool
+                    if (distance < 5) {
+                        // Change both particles to tool role
+                        activeParticles[target.idx].role = 'tool';
+                        activeParticles[target.idx].color.set(0xff4500); // Orange-red for tools
+                        sizes[target.idx] = 7.0;
+
+                        this.role = 'tool';
+                        this.color.set(0xff4500);
+                        this.size = 7.0;
+
+                        console.log(`Tool formed between particles ${this.idx} and ${target.idx}`);
+                    }
+                } else {
+                    // No target found, wander
+                    this.velocity.x += (Math.random() - 0.5) * 0.02;
+                    this.velocity.y += (Math.random() - 0.5) * 0.02;
+                    this.velocity.z += (Math.random() - 0.5) * 0.02;
+                }
+
+                // Limit speed
+                this.velocity.clampLength(0, 2);
+
+                // Consume energy
+                this.energy -= 0.05;
+            }
+
+            toolBehavior(activeParticles) {
+                // Tools emit a repelling force to influence other particles
+                const repellingRadius = 150;
+                let repelledCount = 0;
+                for (let p of activeParticles) {
+                    if (p.idx === this.idx) continue;
+                    const dx = positions[p.idx * 3] - this.position.x;
+                    const dy = positions[p.idx * 3 + 1] - this.position.y;
+                    const dz = positions[p.idx * 3 + 2] - this.position.z;
+                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    if (dist < repellingRadius) {
+                        repelledCount++;
+                        const force = (repellingRadius - dist) / 10000;
+                        const direction = new THREE.Vector3(dx, dy, dz).normalize();
+                        activeParticles[p.idx].velocity.add(direction.multiplyScalar(force));
+                    }
+                }
+
+                // Evaluate tool effectiveness
+                if (repelledCount > 100) {
+                    // Highly effective tool: Spawn new builders
+                    if (Math.random() < 0.01) { // Low probability to prevent overpopulation
+                        const newX = this.position.x + (Math.random() - 0.5) * 50;
+                        const newY = this.position.y + (Math.random() - 0.5) * 50;
+                        const newZ = this.position.z + (Math.random() - 0.5) * 50;
+                        const idx = particlePool.getParticle(newX, newY, newZ);
+                        if (idx !== null) {
+                            autonomousParticles.push(new AutonomousParticle(idx));
+                            updateParticle(idx);
+                            console.log('New builder spawned by effective tool.');
+                        }
+                    }
+                } else if (repelledCount < 50) {
+                    // Ineffective tool: Dismantle tool
+                    particlePool.releaseParticle(this.idx);
+                    console.log('Tool dismantled due to low effectiveness.');
+                }
+
+                // Optionally, enhance tool properties based on effectiveness
+                if (repelledCount > 150) {
+                    this.size += 0.1; // Enhance tool size
+                    console.log('Tool enhanced for increased effectiveness.');
+                }
+            }
+        }
+
+        // Initialize Autonomous Particles List
+        const autonomousParticles = [];
+
+        // Start with initial particles
+        initParticles(initialParticleCount);
+
+        // Animation Loop with Autonomous Behavior
+        function enhancedAnimate() {
+            stats.begin();
+
+            requestAnimationFrame(enhancedAnimate);
+
+            // Update Autonomous Particles
+            for (let particle of autonomousParticles) {
+                particle.update(autonomousParticles);
+            }
+
+            // Update OrbitControls
+            controls.update();
+
+            // Rotate the entire particle system for dynamic visuals
+            particles.rotation.y += 0.001;
+
+            // Render the scene
+            renderer.render(scene, camera);
+
+            stats.end();
+        }
+
+        // Start Enhanced Animation
+        enhancedAnimate();
+
+        // Growth Stages Management
+        function startGrowthStages() {
+            if (growthTimer === null && currentStage < maxStages) {
+                growthTimer = setInterval(() => {
+                    if (currentStage < maxStages) {
+                        // Adjust growth based on FPS (handled by Stats.js)
+                        if (stats.fps < 30) {
+                            // Slow down growth if FPS is low
+                            clearInterval(growthTimer);
+                            const newInterval = growthInterval * 1.5; // Increase interval by 50%
+                            growthTimer = setInterval(arguments.callee, newInterval);
+                            console.log('Reducing growth rate due to low FPS.');
+                            return;
+                        }
+
+                        // Exponential Growth: Double the particles each stage
+                        const newParticlesCount = Math.pow(2, currentStage + 1) * initialParticleCount;
+                        const particlesToAdd = newParticlesCount - particlePool.currentIndex;
+                        for (let i = 0; i < particlesToAdd; i++) {
+                            const x = (Math.random() - 0.5) * 400;
+                            const y = (Math.random() - 0.5) * 400;
+                            const z = (Math.random() - 0.5) * 400;
+                            const idx = particlePool.getParticle(x, y, z);
+                            if (idx !== null) {
+                                autonomousParticles.push(new AutonomousParticle(idx));
+                                updateParticle(idx);
+                            }
+                        }
+                        currentStage++;
+                        console.log(`Growth Stage ${currentStage}: Total Particles = ${particlePool.currentIndex}`);
+                        updateInfoBox();
+                    }
+                }, growthInterval);
+            }
+        }
+
+        // Start Growth Stages Automatically
+        startGrowthStages();
+
+        // Update Info Box with Current Stage
+        function updateInfoBox() {
+            const infoBox = document.getElementById('info');
+            infoBox.innerHTML = `
+                <p><strong>Autonomous Exponential Growth Organic Lifeform Visual</strong></p>
+                <p>Growth Stage: <strong>${currentStage}</strong></p>
+                <p>Total Particles: <strong>${particlePool.currentIndex}</strong></p>
+                <p>The simulation is evolving autonomously.</p>
+            `;
+        }
+
+        // Initialize Info Box
+        updateInfoBox();
+    </script>
+</body>
+</html>
