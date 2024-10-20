@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Hidden Pattern Detection</title>
+<style>
+body { margin: 0; overflow: hidden; }
+#video { display: none; }
+#canvas { position: absolute; top: 0; left: 0; }
+#fullscreenButton { position: absolute; top: 10px; left: 10px; z-index: 10; }
+#saveButton { position: absolute; top: 50px; left: 10px; z-index: 10; }
+</style>
+</head>
+<body>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+
+<button id="fullscreenButton">Go Fullscreen</button>
+<button id="saveButton">Save Image</button>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const fullscreenButton = document.getElementById('fullscreenButton');
+const saveButton = document.getElementById('saveButton');
+
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+  .then(stream => video.srcObject = stream)
+  .catch(err => console.error("Error accessing camera: ", err));
+
+video.addEventListener('play', () => {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  let previousFrameData = null;
+
+  setInterval(() => {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    if (previousFrameData) {
+      const differenceImageData = analyzeNoiseDifference(data, previousFrameData, canvas.width, canvas.height);
+      ctx.putImageData(differenceImageData, 0, 0);
+    }
+
+    previousFrameData = new Uint8ClampedArray(data); 
+  }, 1000/30); 
+});
+
+function analyzeNoiseDifference(currentData, previousData, width, height) {
+  const differenceImageData = ctx.createImageData(width, height);
+  const diffData = differenceImageData.data;
+
+  for (let i = 0; i < currentData.length; i += 4) {
+    let diffR = Math.abs(currentData[i] - previousData[i]);
+    let diffG = Math.abs(currentData[i + 1] - previousData[i + 1]);
+    let diffB = Math.abs(currentData[i + 2] - previousData[i + 2]);
+
+    const threshold = 5; 
+    if (diffR < threshold && diffG < threshold && diffB < threshold) {
+      diffR = diffG = diffB = 0; 
+    } else {
+      const amplificationFactor = 20; 
+      diffR *= amplificationFactor;
+      diffG *= amplificationFactor;
+      diffB *= amplificationFactor;
+    }
+
+    diffData[i] = diffG;
+    diffData[i + 1] = diffB;
+    diffData[i + 2] = diffR;
+    diffData[i + 3] = 255; 
+  }
+
+  return differenceImageData;
+}
+
+fullscreenButton.addEventListener('click', () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    canvas.requestFullscreen();
+  }
+});
+
+saveButton.addEventListener('click', () => {
+  const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
+  const filename = `hidden_pattern_${timestamp}.png`;
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png', 1.0);
+  link.click();
+});
+</script>
+
+</body>
+</html>
