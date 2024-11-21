@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Magnetometer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        div { margin: 20px auto; max-width: 800px; }
+        canvas { border: 1px solid #ddd; margin-top: 10px; }
+        button { margin: 10px; padding: 8px 15px; }
+    </style>
+</head>
+<body>
+    <h1>Scientific Magnetometer Explorer</h1>
+    <div>
+        <h2>X, Y, Z Components (µT)</h2>
+        <canvas id="magnetometerChart"></canvas>
+    </div>
+    <div>
+        <h2>Field Strength (Magnitude)</h2>
+        <canvas id="magnitudeChart"></canvas>
+    </div>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn">Stop Recording</button>
+    <button id="downloadBtn">Download Data (CSV)</button>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let recording = false;
+            let recordedData = [];
+            const ctx1 = document.getElementById('magnetometerChart').getContext('2d');
+            const magnetometerChart = new Chart(ctx1, {
+                type: 'line', data: { labels: [], datasets: [
+                    { label: 'X (µT)', data: [], borderColor: 'red' },
+                    { label: 'Y (µT)', data: [], borderColor: 'blue' },
+                    { label: 'Z (µT)', data: [], borderColor: 'green' }]},
+                options: { responsive: true, scales: { y: { beginAtZero: false } }, plugins: { title: { display: true, text: 'X, Y, Z Components' } } }
+            });
+            const ctx2 = document.getElementById('magnitudeChart').getContext('2d');
+            const magnitudeChart = new Chart(ctx2, {
+                type: 'line', data: { labels: [], datasets: [{ label: 'Magnitude (µT)', data: [], borderColor: 'purple' }] },
+                options: { responsive: true, scales: { y: { beginAtZero: false } }, plugins: { title: { display: true, text: 'Field Strength' } } }
+            });
+            if ('Magnetometer' in window) {
+                const magnetometer = new Magnetometer();
+                magnetometer.addEventListener('reading', () => {
+                    const { x, y, z } = magnetometer;
+                    const magnitude = Math.sqrt(x*x + y*y + z*z);
+                    const timestamp = new Date().toLocaleTimeString();
+                    magnetometerChart.data.labels.push(timestamp);
+                    magnetometerChart.data.datasets[0].data.push(x);
+                    magnetometerChart.data.datasets[1].data.push(y);
+                    magnetometerChart.data.datasets[2].data.push(z);
+                    magnitudeChart.data.labels.push(timestamp);
+                    magnitudeChart.data.datasets[0].data.push(magnitude);
+                    if (magnetometerChart.data.labels.length > 20) {
+                        magnetometerChart.data.labels.shift();
+                        magnetometerChart.data.datasets.forEach(set => set.data.shift());
+                        magnitudeChart.data.labels.shift();
+                        magnitudeChart.data.datasets.forEach(set => set.data.shift());
+                    }
+                    magnetometerChart.update();
+                    magnitudeChart.update();
+                    if (recording) {
+                        recordedData.push({ timestamp: timestamp, x: x, y: y, z: z, magnitude: magnitude });
+                    }
+                });
+                magnetometer.start();
+            } else { alert('Magnetometer sensor not available in this browser or device.'); }
+            document.getElementById('startBtn').addEventListener('click', () => { recording = true; recordedData = []; alert("Recording started."); });
+            document.getElementById('stopBtn').addEventListener('click', () => { recording = false; alert("Recording stopped."); });
+            document.getElementById('downloadBtn').addEventListener('click', () => {
+                if (recordedData.length > 0) {
+                    let csvContent = "data:text/csv;charset=utf-8,Time,X (µT),Y (µT),Z (µT),Magnitude (µT)\n" + recordedData.map(row => `${row.timestamp},${row.x},${row.y},${row.z},${row.magnitude}`).join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", "magnetometer_data.csv");
+                    document.body.appendChild(link);
+                    link.click();
+                } else { alert('No recorded data to download.'); }
+            });
+        });
+    </script>
+</body>
+</html>
